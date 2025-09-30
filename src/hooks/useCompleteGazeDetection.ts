@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { zoomiesDB } from '../database/couchdb-simple'
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
+import type { FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision'
 
 // EXACT constants from Python version - NO CHANGES
 const LEFT_EYE_INDICES = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
@@ -18,19 +20,6 @@ const GAZE_LEFT_THRESHOLD = 0.4
 const GAZE_RIGHT_THRESHOLD = 0.6
 const LOOKING_AT_SCREEN_CONFIDENCE = 0.90
 
-// Helper function for generating mock landmarks
-const generateMockLandmarks = () => {
-  const landmarks = []
-  for (let i = 0; i < 478; i++) {
-    landmarks.push({
-      x: 0.5 + (Math.random() - 0.5) * 0.1,
-      y: 0.5 + (Math.random() - 0.5) * 0.1,
-      z: 0
-    })
-  }
-  return landmarks
-}
-
 export const useCompleteGazeDetection = (courseId: string) => {
   const { user } = useAuth()
   const [isActive, setIsActive] = useState(false)
@@ -38,12 +27,13 @@ export const useCompleteGazeDetection = (courseId: string) => {
   const [isDetecting, setIsDetecting] = useState(false)
   const [distractionCount, setDistractionCount] = useState(0)
   const [focusTime, setFocusTime] = useState(0)
+  const [isFaceLandmarkerReady, setIsFaceLandmarkerReady] = useState(false)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const animationFrameRef = useRef<number | null>(null)
-  const faceLandmarkerRef = useRef<any>(null)
+  const faceLandmarkerRef = useRef<FaceLandmarker | null>(null)
   const isLookingAtScreenRef = useRef<boolean>(false)
   const lastAttentionTimeRef = useRef<number>(0)
 
@@ -118,7 +108,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
   }, [])
 
   // EXACT detect_attention_status from Python - NO CHANGES
-  const detectAttentionStatus = useCallback((faceLandmarks: any[]): any => {
+  const detectAttentionStatus = useCallback((faceLandmarks: NormalizedLandmark[][] | undefined): any => {
     if (!faceLandmarks || faceLandmarks.length === 0) {
       return {
         looking_at_screen: false,
@@ -129,7 +119,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
     }
     
     const landmarks = faceLandmarks[0]
-    const allLandmarks = landmarks.map((lm: any) => ({ x: lm.x, y: lm.y }))
+    const allLandmarks = landmarks.map((lm: NormalizedLandmark) => ({ x: lm.x, y: lm.y }))
     
     // Extract eye landmarks for EAR calculation
     const leftEyeLandmarks = LEFT_EYE_INDICES.map(idx => allLandmarks[idx])
@@ -188,7 +178,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
   }, [calculateGazeRatio, calculateEAR])
 
   // EXACT visualize_attention from Python - NO CHANGES
-  const visualizeAttention = useCallback((image: HTMLVideoElement, faceLandmarks: any[], attentionStatus: any) => {
+  const visualizeAttention = useCallback((image: HTMLVideoElement, faceLandmarks: NormalizedLandmark[][] | undefined, attentionStatus: any) => {
     const canvas = canvasRef.current
     if (!canvas) return
 
@@ -208,7 +198,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
     if (!faceLandmarks || faceLandmarks.length === 0) {
       // Show "Student not looking at the screen" message
       const statusText = "Student not looking at the screen"
-      const color = "rgb(0, 0, 255)" // Red
+      const color = "rgb(255, 0, 0)" // Red
       
       // Draw text with background
       ctx.font = "bold 24px Arial"
@@ -259,7 +249,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
       const earText = `EAR: ${attentionStatus.ear.toFixed(3)}`
       
       // Choose colors based on attention status
-      const color = attentionStatus.looking_at_screen ? "rgb(0, 255, 0)" : "rgb(0, 0, 255)" // Green or Red
+      const color = attentionStatus.looking_at_screen ? "rgb(0, 255, 0)" : "rgb(255, 0, 0)" // Green or Red
       
       // Draw text with background
       ctx.font = "bold 20px Arial"
@@ -309,183 +299,143 @@ export const useCompleteGazeDetection = (courseId: string) => {
     }
   }, [user, courseId])
 
-  // Initialize MediaPipe Face Landmarker - EXACT match with Python
+  // Initialize MediaPipe Face Landmarker using Tasks API
   useEffect(() => {
-    const initializeFaceLandmarker = async () => {
+    let cancelled = false
+    let landmarker: FaceLandmarker | null = null
+
+    const initialize = async () => {
       try {
         console.log('Initializing MediaPipe Face Landmarker...')
-        
-        // Check if MediaPipe is already loaded
-        if ((window as any).FaceLandmarker) {
-          console.log('MediaPipe Face Landmarker already loaded')
-          setupFaceLandmarker()
+        const filesetResolver = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+        )
+
+        if (cancelled) {
           return
         }
 
-        // Load MediaPipe Face Landmarker from CDN - EXACT same as Python
-        const script = document.createElement('script')
-        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.js'
-        script.type = 'module'
-        script.crossOrigin = 'anonymous'
-        
-        script.onload = () => {
-          console.log('MediaPipe Face Landmarker script loaded')
-          if ((window as any).FaceLandmarker) {
-            console.log('FaceLandmarker class available')
-            setupFaceLandmarker()
-          } else {
-            console.error('FaceLandmarker class not available after script load')
-            setupFallbackDetection()
+        const modelAssetPath = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
+
+        try {
+          landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+            baseOptions: {
+              modelAssetPath,
+              delegate: 'GPU'
+            },
+            runningMode: 'VIDEO',
+            numFaces: 1
+          })
+        } catch (gpuError) {
+          console.warn('GPU delegate failed, falling back to CPU:', gpuError)
+          if (cancelled) {
+            return
           }
-        }
-        
-        script.onerror = (error) => {
-          console.error('Error loading MediaPipe Face Landmarker script:', error)
-          setupFallbackDetection()
-        }
-        
-        document.head.appendChild(script)
-      } catch (error) {
-        console.error('Error initializing Face Landmarker:', error)
-        setupFallbackDetection()
-      }
-    }
 
-    const setupFaceLandmarker = async () => {
-      try {
-        // Wait for script to fully load
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
-        // Check if FaceLandmarker is available
-        if (!(window as any).FaceLandmarker) {
-          console.error('FaceLandmarker not available after script load')
-          setupFallbackDetection()
+          landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+            baseOptions: {
+              modelAssetPath,
+              delegate: 'CPU'
+            },
+            runningMode: 'VIDEO',
+            numFaces: 1
+          })
+        }
+
+        if (cancelled) {
+          landmarker.close()
           return
         }
-        
-        // Create Face Landmarker - EXACT match with Python
-        const faceLandmarker = await (window as any).FaceLandmarker.createFromOptions({
-          baseOptions: {
-            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
-          },
-          runningMode: 'VIDEO',
-          numFaces: 1,
-          outputFaceBlendshapes: true,
-          outputFacialTransformationMatrixes: true
-        })
-        
-        faceLandmarkerRef.current = faceLandmarker
+
+        faceLandmarkerRef.current = landmarker
+        setIsFaceLandmarkerReady(true)
         console.log('Face Landmarker initialized successfully')
       } catch (error) {
-        console.error('Error setting up Face Landmarker:', error)
-        setupFallbackDetection()
-      }
-    }
-
-    const setupFallbackDetection = () => {
-      console.log('Setting up fallback detection')
-      // Create a mock face landmarker for fallback
-      faceLandmarkerRef.current = {
-        detectForVideo: (_image: any, _timestamp: number) => {
-          // Simulate face detection results
-          const mockLandmarks = generateMockLandmarks()
-          return {
-            faceLandmarks: [mockLandmarks]
-          }
+        if (!cancelled) {
+          console.error('Error initializing Face Landmarker:', error)
+          setIsFaceLandmarkerReady(false)
         }
       }
     }
 
+    initialize()
 
-    initializeFaceLandmarker()
+    return () => {
+      cancelled = true
+      if (landmarker) {
+        landmarker.close()
+      }
+      faceLandmarkerRef.current = null
+    }
   }, [])
 
-  // Detection loop - EXACT match with Python video processing
+  // Detection loop - matches Python video processing flow
   useEffect(() => {
-    if (!isActive || !isDetecting || !faceLandmarkerRef.current) return
+    if (!isActive || !isDetecting || !isFaceLandmarkerReady || !faceLandmarkerRef.current) {
+      return
+    }
 
+    let animationFrameId: number | null = null
+    let stopped = false
 
     const detectLoop = () => {
-      if (!videoRef.current || !isDetecting) return
+      if (stopped || !videoRef.current || !faceLandmarkerRef.current) {
+        return
+      }
 
       const video = videoRef.current
       if (video.readyState < 2) {
-        animationFrameRef.current = requestAnimationFrame(detectLoop)
+        animationFrameId = requestAnimationFrame(detectLoop)
+        animationFrameRef.current = animationFrameId
         return
       }
 
       try {
-        // Create image data from video - EXACT same as Python
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
+        const result: FaceLandmarkerResult = faceLandmarkerRef.current.detectForVideo(video, performance.now())
+        const faceLandmarks = result.faceLandmarks ?? []
+        const attentionStatus = detectAttentionStatus(faceLandmarks)
 
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        ctx.drawImage(video, 0, 0)
+        visualizeAttention(video, faceLandmarks, attentionStatus)
 
-        // Convert to image data
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        
-        // Create MediaPipe image - EXACT same as Python
-        const mpImage = new (window as any).Image(imageData.data, canvas.width, canvas.height, (window as any).ImageFormat?.SRGB || 1)
-        
-        // Detect face landmarks - EXACT same as Python
-        const timestamp = Date.now()
-        const result = faceLandmarkerRef.current.detectForVideo(mpImage, timestamp)
-        
-        // Detect attention status - EXACT same as Python
-        const attentionStatus = detectAttentionStatus(result.faceLandmarks)
-        
-        // Visualize results - EXACT same as Python
-        visualizeAttention(video, result.faceLandmarks, attentionStatus)
-        
-        // Update statistics - EXACT same as Python
-        const now = Date.now()
-        const timeDiff = now - lastAttentionTimeRef.current
-        
-        if (attentionStatus.looking_at_screen !== isLookingAtScreenRef.current) {
-          if (attentionStatus.looking_at_screen) {
-            // Started looking at screen
+        const nowMs = Date.now()
+        const previousMs = lastAttentionTimeRef.current || nowMs
+        const timeDiff = nowMs - previousMs
+        const wasLooking = isLookingAtScreenRef.current
+        const isLooking = attentionStatus.looking_at_screen
+
+        if (timeDiff > 0) {
+          if (isLooking && !wasLooking) {
             setFocusTime(prev => prev + timeDiff)
             saveGazeEvent('gaze:back_to_screen', attentionStatus.confidence, timeDiff)
-          } else {
-            // Started looking away
+          } else if (!isLooking && wasLooking) {
             setDistractionCount(prev => prev + 1)
             saveGazeEvent('gaze:looking_away', attentionStatus.confidence, timeDiff)
+          } else if (isLooking) {
+            setFocusTime(prev => prev + timeDiff)
           }
-          
-          isLookingAtScreenRef.current = attentionStatus.looking_at_screen
-          lastAttentionTimeRef.current = now
-        } else if (attentionStatus.looking_at_screen) {
-          // Continue looking at screen
-          setFocusTime(prev => prev + timeDiff)
         }
-        
-        lastAttentionTimeRef.current = now
+
+        isLookingAtScreenRef.current = isLooking
+        lastAttentionTimeRef.current = nowMs
       } catch (error) {
         console.error('Error in detection loop:', error)
-        // Use fallback with mock data
-        const mockLandmarks = generateMockLandmarks()
-        const attentionStatus = detectAttentionStatus([mockLandmarks])
-        visualizeAttention(video, [mockLandmarks], attentionStatus)
       }
 
-      animationFrameRef.current = requestAnimationFrame(detectLoop)
+      animationFrameId = requestAnimationFrame(detectLoop)
+      animationFrameRef.current = animationFrameId
     }
 
-    // Start detection loop with a small delay
-    const timeoutId = setTimeout(() => {
-      detectLoop()
-    }, 100)
+    animationFrameId = requestAnimationFrame(detectLoop)
+    animationFrameRef.current = animationFrameId
 
     return () => {
-      clearTimeout(timeoutId)
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
+      stopped = true
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
       }
+      animationFrameRef.current = null
     }
-  }, [isActive, isDetecting, detectAttentionStatus, visualizeAttention, saveGazeEvent])
+  }, [isActive, isDetecting, isFaceLandmarkerReady, detectAttentionStatus, visualizeAttention, saveGazeEvent])
 
   // Start detection
   const startDetection = useCallback(async () => {
@@ -511,10 +461,14 @@ export const useCompleteGazeDetection = (courseId: string) => {
         videoRef.current.srcObject = stream
         videoRef.current.onloadedmetadata = () => {
           console.log('Video metadata loaded')
+          lastAttentionTimeRef.current = Date.now()
+          isLookingAtScreenRef.current = false
           setIsDetecting(true)
         }
         videoRef.current.oncanplay = () => {
           console.log('Video can play')
+          lastAttentionTimeRef.current = Date.now()
+          isLookingAtScreenRef.current = false
           setIsDetecting(true)
         }
         videoRef.current.onerror = (error) => {
@@ -548,6 +502,8 @@ export const useCompleteGazeDetection = (courseId: string) => {
     
     setIsDetecting(false)
     setIsPermissionGranted(false)
+    isLookingAtScreenRef.current = false
+    lastAttentionTimeRef.current = 0
     console.log('Gaze detection stopped')
   }, [])
 
