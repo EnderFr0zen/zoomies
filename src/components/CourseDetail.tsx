@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth.tsx'
 import { useCourses } from '../hooks/useCourses'
 import FileUpload from './FileUpload'
 import InlineFileViewer from './InlineFileViewer'
+import GazeCamera from './GazeCamera'
 import './CourseDetail.css'
 
 interface CourseDetailProps {
@@ -225,6 +226,11 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
           file={viewingFile}
           onClose={handleCloseViewer}
         />
+      )}
+      
+      {/* Gaze Detection Camera - Only for students */}
+      {!isTeacher && (
+        <GazeCamera courseId={courseId} />
       )}
     </div>
   )

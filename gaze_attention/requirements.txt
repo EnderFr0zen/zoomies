@@ -1,0 +1,12 @@
+# Core runtime dependencies for face_detector.ipynb
+# Notes:
+# - Standard library modules (typing, math, os, time, urllib) are not listed.
+# - google.colab is only for Colab; not required for local runs.
+
+mediapipe[python]>=0.10
+opencv-python>=4.8
+numpy>=1.24
+
+# Jupyter runtime to run the notebook locally
+notebook>=7
+ipykernel>=6

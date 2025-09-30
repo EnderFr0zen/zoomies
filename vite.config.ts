@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), basicSsl()],
   optimizeDeps: {
     include: ['pouchdb', 'pouchdb-find']
   },
@@ -21,6 +22,7 @@ export default defineConfig({
     }
   },
   server: {
+    host: '0.0.0.0', // Allow external connections
     port: 7777,
     strictPort: true,
     proxy: {

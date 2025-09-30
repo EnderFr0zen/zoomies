@@ -1,15 +1,9 @@
-import React, { useState } from 'react'
+import React from 'react'
 import Lottie from 'lottie-react'
 import koalaNormal from '../assets/animations/koala-normal.json'
 import './KoalaPet.css'
 
 const SimpleKoala: React.FC = () => {
-  const [clickCount, setClickCount] = useState(0)
-
-  const handleClick = () => {
-    console.log('Koala clicked!')
-    setClickCount(prev => prev + 1)
-  }
 
   return (
     <div 
@@ -23,9 +17,7 @@ const SimpleKoala: React.FC = () => {
         background: 'none',
         border: 'none',
         padding: 0,
-        cursor: 'pointer'
       }}
-      onClick={handleClick}
     >
       <div className="koala-container">
         <div className="koala-animation">
@@ -44,9 +36,6 @@ const SimpleKoala: React.FC = () => {
           />
         </div>
         
-        <div className="koala-bubble">
-          <span className="bubble-text">Test Koala - Clicked {clickCount} times! 🐨</span>
-        </div>
       </div>
     </div>
   )

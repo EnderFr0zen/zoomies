@@ -14,6 +14,9 @@
     "couchdb:reset": "docker-compose down -v && docker-compose up -d && sleep 10 && node setup-couchdb.js"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/face_mesh": "^0.4.1633559619",
     "events": "^3.3.0",
     "lottie-react": "^2.4.1",
     "pouchdb": "^7.3.1",
@@ -27,6 +30,7 @@
     "@types/pouchdb": "^6.4.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-basic-ssl": "^2.1.0",
     "@vitejs/plugin-react": "^5.0.3",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",

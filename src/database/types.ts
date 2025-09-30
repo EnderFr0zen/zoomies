@@ -93,6 +93,11 @@ export type EventType =
   // Attention events
   | 'attention:present'
   | 'attention:lost'
+  // Gaze detection events
+  | 'gaze:focused'
+  | 'gaze:distracted'
+  | 'gaze:looking_away'
+  | 'gaze:back_to_screen'
   // Nudge events
   | 'nudge1:shown'
   | 'nudge2:shown'
@@ -112,6 +117,14 @@ export interface EventData {
   // Attention related
   reason?: 'no_face' | 'yaw' | 'pitch' | 'tab_hidden' | 'input_idle' | 'window_blur'
   attentionLevel?: number // 0-1
+  
+  // Gaze detection related
+  gazeConfidence?: number // 0-1
+  gazeDuration?: number // milliseconds
+  faceDetected?: boolean
+  faceCenterX?: number
+  faceCenterY?: number
+  distanceFromCenter?: number
   
   // Nudge related
   nudgeType?: 'nudge1' | 'nudge2'
@@ -246,4 +259,31 @@ export interface StorageQuota {
   maxSessions: number
   retentionDays: number
   compressionEnabled: boolean
+}
+
+// Gaze Detection Types
+export interface GazeEvent {
+  type: 'gaze:focused' | 'gaze:distracted' | 'gaze:looking_away' | 'gaze:back_to_screen'
+  timestamp: number
+  confidence: number
+  duration: number
+  gazeConfidence?: number
+  gazeDuration?: number
+  faceDetected?: boolean
+  faceCenterX?: number
+  faceCenterY?: number
+  distanceFromCenter?: number
+}
+
+export interface GazeSession {
+  sessionId: string
+  userId: string
+  courseId: string
+  startTime: number
+  endTime: number | null
+  events: GazeEvent[]
+  totalFocusTime: number
+  totalDistractionTime: number
+  distractionCount: number
+  lastActivity: number
 }
