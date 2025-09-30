@@ -29,6 +29,8 @@ body {
   background: #f8f9fa;
   min-height: calc(100vh - 60px);
   transition: margin-left 0.3s ease;
+  width: calc(100% - 250px);
+  overflow-x: auto;
 }
 
 .loading-screen {
@@ -85,6 +87,7 @@ body {
   .main-content {
     margin-left: 0;
     padding: 0;
+    width: 100%;
   }
   
   .main-layout {

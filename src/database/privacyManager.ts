@@ -26,6 +26,13 @@ export class PrivacyManager {
   async requestConsent(): Promise<boolean> {
     if (this.consentGiven) return true
 
+    // Auto-accept consent for development
+    console.log('Auto-accepting privacy consent for development')
+    this.grantConsent()
+    return true
+
+    // Original consent dialog code (commented out for development)
+    /*
     return new Promise((resolve) => {
       // 創建同意對話框
       const consentDialog = this.createConsentDialog((accepted) => {
@@ -37,9 +44,11 @@ export class PrivacyManager {
 
       document.body.appendChild(consentDialog)
     })
+    */
   }
 
-  // 創建同意對話框
+  // 創建同意對話框 (commented out for development)
+  /*
   private createConsentDialog(onResponse: (accepted: boolean) => void): HTMLElement {
     const dialog = document.createElement('div')
     dialog.style.cssText = `
@@ -118,6 +127,7 @@ export class PrivacyManager {
 
     return dialog
   }
+  */
 
   // 授予同意
   private grantConsent(): void {

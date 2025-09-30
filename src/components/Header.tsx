@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../hooks/useAuth.tsx'
 import './Header.css'
 import logoImage from '../assets/logo.png'
 

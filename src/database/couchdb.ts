@@ -1,3 +1,5 @@
+import PouchDB from 'pouchdb'
+import PouchDBFind from 'pouchdb-find'
 import type { 
   SessionDocument, 
   EventDocument, 
@@ -8,117 +10,32 @@ import type {
 } from './types'
 import { DATABASE_NAMES, SCHEMA_VERSION } from './types'
 
-// Simple IndexedDB wrapper for browser compatibility
-class SimpleDB {
-  private dbName: string
-  private db: IDBDatabase | null = null
+// Enable PouchDB plugins
+PouchDB.plugin(PouchDBFind)
 
-  constructor(dbName: string) {
-    this.dbName = dbName
-  }
-
-  async open(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 1)
-      
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => {
-        this.db = request.result
-        resolve()
-      }
-      
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result
-        if (!db.objectStoreNames.contains('documents')) {
-          db.createObjectStore('documents', { keyPath: '_id' })
-        }
-      }
-    })
-  }
-
-  async put(doc: any): Promise<any> {
-    if (!this.db) await this.open()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['documents'], 'readwrite')
-      const store = transaction.objectStore('documents')
-      const request = store.put(doc)
-      
-      request.onsuccess = () => resolve(doc)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async get(id: string): Promise<any> {
-    if (!this.db) await this.open()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['documents'], 'readonly')
-      const store = transaction.objectStore('documents')
-      const request = store.get(id)
-      
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async getAll(): Promise<any[]> {
-    if (!this.db) await this.open()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction(['documents'], 'readonly')
-      const store = transaction.objectStore('documents')
-      const request = store.getAll()
-      
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async find(selector: any): Promise<any[]> {
-    const allDocs = await this.getAll()
-    // Simple filtering - in a real app you'd want more sophisticated querying
-    return allDocs.filter(doc => {
-      for (const [key, value] of Object.entries(selector)) {
-        if (doc[key] !== value) return false
-      }
-      return true
-    })
-  }
-
-  async destroy(): Promise<void> {
-    if (this.db) {
-      this.db.close()
-      this.db = null
-    }
-    
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.deleteDatabase(this.dbName)
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-}
+// CouchDB configuration
+const COUCHDB_URL = 'http://admin:password@localhost:5984'
+const COUCHDB_DATABASE_PREFIX = 'zoomies_'
 
 // Database instances
-class ZoomiesDatabase {
-  private readonly usersDB: SimpleDB
-  private readonly coursesDB: SimpleDB
-  private readonly sessionsDB: SimpleDB
-  private readonly eventsDB: SimpleDB
-  private readonly metricsDB: SimpleDB
-  private readonly settingsDB: SimpleDB
+class CouchDBDatabase {
+  private readonly usersDB: PouchDB.Database
+  private readonly coursesDB: PouchDB.Database
+  private readonly sessionsDB: PouchDB.Database
+  private readonly eventsDB: PouchDB.Database
+  private readonly metricsDB: PouchDB.Database
+  private readonly settingsDB: PouchDB.Database
   
   private isInitialized = false
 
   constructor() {
-    // Initialize database instances
-    this.usersDB = new SimpleDB(DATABASE_NAMES.USERS)
-    this.coursesDB = new SimpleDB(DATABASE_NAMES.COURSES)
-    this.sessionsDB = new SimpleDB(DATABASE_NAMES.SESSIONS)
-    this.eventsDB = new SimpleDB(DATABASE_NAMES.EVENTS)
-    this.metricsDB = new SimpleDB(DATABASE_NAMES.METRICS)
-    this.settingsDB = new SimpleDB(DATABASE_NAMES.SETTINGS)
+    // Initialize CouchDB databases
+    this.usersDB = new PouchDB(`${COUCHDB_URL}/${COUCHDB_DATABASE_PREFIX}${DATABASE_NAMES.USERS}`)
+    this.coursesDB = new PouchDB(`${COUCHDB_URL}/${COUCHDB_DATABASE_PREFIX}${DATABASE_NAMES.COURSES}`)
+    this.sessionsDB = new PouchDB(`${COUCHDB_URL}/${COUCHDB_DATABASE_PREFIX}${DATABASE_NAMES.SESSIONS}`)
+    this.eventsDB = new PouchDB(`${COUCHDB_URL}/${COUCHDB_DATABASE_PREFIX}${DATABASE_NAMES.EVENTS}`)
+    this.metricsDB = new PouchDB(`${COUCHDB_URL}/${COUCHDB_DATABASE_PREFIX}${DATABASE_NAMES.METRICS}`)
+    this.settingsDB = new PouchDB(`${COUCHDB_URL}/${COUCHDB_DATABASE_PREFIX}${DATABASE_NAMES.SETTINGS}`)
   }
 
   // Initialize database
@@ -126,30 +43,102 @@ class ZoomiesDatabase {
     if (this.isInitialized) return
 
     try {
-      // Request persistent storage
-      if ('storage' in navigator && 'persist' in navigator.storage) {
-        const isPersistent = await navigator.storage.persist()
-        console.log('Persistent storage granted:', isPersistent)
-      }
-
-      // Open all databases
+      console.log('Initializing CouchDB databases...')
+      
+      // Create databases if they don't exist
       await Promise.all([
-        this.usersDB.open(),
-        this.coursesDB.open(),
-        this.sessionsDB.open(),
-        this.eventsDB.open(),
-        this.metricsDB.open(),
-        this.settingsDB.open()
+        this.createDatabaseIfNotExists(this.usersDB),
+        this.createDatabaseIfNotExists(this.coursesDB),
+        this.createDatabaseIfNotExists(this.sessionsDB),
+        this.createDatabaseIfNotExists(this.eventsDB),
+        this.createDatabaseIfNotExists(this.metricsDB),
+        this.createDatabaseIfNotExists(this.settingsDB)
       ])
+
+      // Create indexes for better query performance
+      await this.createIndexes()
       
       // Initialize default settings
       await this.initializeDefaultSettings()
       
       this.isInitialized = true
-      console.log('Zoomies database initialized successfully')
+      console.log('CouchDB databases initialized successfully')
     } catch (error) {
-      console.error('Failed to initialize database:', error)
+      console.error('Failed to initialize CouchDB databases:', error)
       throw error
+    }
+  }
+
+  // Create database if it doesn't exist
+  private async createDatabaseIfNotExists(db: PouchDB.Database): Promise<void> {
+    try {
+      await db.info()
+    } catch (error: any) {
+      if (error.status === 404) {
+        await db.create()
+        console.log(`Created database: ${db.name}`)
+      } else {
+        throw error
+      }
+    }
+  }
+
+  // Create indexes for better query performance
+  private async createIndexes(): Promise<void> {
+    try {
+      // Users indexes
+      await this.usersDB.createIndex({
+        index: { fields: ['username'] }
+      })
+      await this.usersDB.createIndex({
+        index: { fields: ['role'] }
+      })
+      await this.usersDB.createIndex({
+        index: { fields: ['teacherId'] }
+      })
+
+      // Courses indexes
+      await this.coursesDB.createIndex({
+        index: { fields: ['teacherId'] }
+      })
+      await this.coursesDB.createIndex({
+        index: { fields: ['studentIds'] }
+      })
+      await this.coursesDB.createIndex({
+        index: { fields: ['isActive'] }
+      })
+
+      // Sessions indexes
+      await this.sessionsDB.createIndex({
+        index: { fields: ['userId'] }
+      })
+      await this.sessionsDB.createIndex({
+        index: { fields: ['startedAt'] }
+      })
+
+      // Events indexes
+      await this.eventsDB.createIndex({
+        index: { fields: ['sessionId'] }
+      })
+      await this.eventsDB.createIndex({
+        index: { fields: ['userId'] }
+      })
+      await this.eventsDB.createIndex({
+        index: { fields: ['timestamp'] }
+      })
+
+      // Metrics indexes
+      await this.metricsDB.createIndex({
+        index: { fields: ['userId'] }
+      })
+      await this.metricsDB.createIndex({
+        index: { fields: ['sessionId'] }
+      })
+
+      console.log('Database indexes created successfully')
+    } catch (error) {
+      console.error('Failed to create indexes:', error)
+      // Don't throw error, continue with app
     }
   }
 
@@ -201,9 +190,10 @@ class ZoomiesDatabase {
   // Get settings
   async getSettings(): Promise<SettingsDocument | null> {
     try {
-      return await this.settingsDB.get('app_settings') as SettingsDocument
+      const doc = await this.settingsDB.get('app_settings')
+      return doc as SettingsDocument
     } catch (error: any) {
-      if (error.name === 'not_found') {
+      if (error.status === 404) {
         return null
       }
       throw error
@@ -227,18 +217,24 @@ class ZoomiesDatabase {
 
   // Clear all databases
   async clearAllData(): Promise<void> {
-    await Promise.all([
-      this.usersDB.destroy(),
-      this.coursesDB.destroy(),
-      this.sessionsDB.destroy(),
-      this.eventsDB.destroy(),
-      this.metricsDB.destroy(),
-      this.settingsDB.destroy()
-    ])
-    console.log('All databases destroyed')
-    // Re-initialize after destruction if needed
-    this.isInitialized = false
-    await this.initialize()
+    try {
+      console.log('Clearing all CouchDB data...')
+      await Promise.all([
+        this.usersDB.destroy(),
+        this.coursesDB.destroy(),
+        this.sessionsDB.destroy(),
+        this.eventsDB.destroy(),
+        this.metricsDB.destroy(),
+        this.settingsDB.destroy()
+      ])
+      console.log('All CouchDB databases destroyed')
+      // Re-initialize after destruction
+      this.isInitialized = false
+      await this.initialize()
+    } catch (error) {
+      console.error('Failed to clear CouchDB data:', error)
+      throw error
+    }
   }
 
   // Clear only courses data
@@ -246,8 +242,17 @@ class ZoomiesDatabase {
     try {
       console.log('Clearing all courses...')
       await this.coursesDB.destroy()
-      // Re-initialize courses database
-      await this.coursesDB.initialize()
+      // Re-create courses database
+      await this.coursesDB.create()
+      await this.coursesDB.createIndex({
+        index: { fields: ['teacherId'] }
+      })
+      await this.coursesDB.createIndex({
+        index: { fields: ['studentIds'] }
+      })
+      await this.coursesDB.createIndex({
+        index: { fields: ['isActive'] }
+      })
       console.log('All courses cleared successfully')
     } catch (error) {
       console.error('Failed to clear courses:', error)
@@ -257,10 +262,16 @@ class ZoomiesDatabase {
 
   // Close all databases
   async closeAllDatabases(): Promise<void> {
-    // SimpleDB doesn't need explicit closing
-    console.log('All databases closed')
+    await Promise.all([
+      this.usersDB.close(),
+      this.coursesDB.close(),
+      this.sessionsDB.close(),
+      this.eventsDB.close(),
+      this.metricsDB.close(),
+      this.settingsDB.close()
+    ])
+    console.log('All CouchDB databases closed')
   }
-
 
   // User management methods
   async createUser(user: Omit<UserDocument, '_id' | '_rev' | 'schemaVersion' | 'createdAt' | 'updatedAt' | 'type'> & { _id?: string }): Promise<UserDocument> {
@@ -271,26 +282,32 @@ class ZoomiesDatabase {
       schemaVersion: SCHEMA_VERSION,
       createdAt: now,
       updatedAt: now,
-      type: 'user' // Automatically set type
+      type: 'user'
     }
 
-    await this.usersDB.put(userDoc)
-    return userDoc
+    const result = await this.usersDB.put(userDoc)
+    return { ...userDoc, _rev: result.rev }
   }
 
   async getUserById(userId: string): Promise<UserDocument | null> {
     try {
       const doc = await this.usersDB.get(userId)
       return doc as UserDocument
-    } catch (error) {
-      return null
+    } catch (error: any) {
+      if (error.status === 404) {
+        return null
+      }
+      throw error
     }
   }
 
   async getUserByUsername(username: string): Promise<UserDocument | null> {
     try {
-      const result = await this.usersDB.find({ username })
-      return result.length > 0 ? result[0] as UserDocument : null
+      const result = await this.usersDB.find({
+        selector: { username },
+        limit: 1
+      })
+      return result.docs.length > 0 ? result.docs[0] as UserDocument : null
     } catch (error) {
       return null
     }
@@ -303,14 +320,16 @@ class ZoomiesDatabase {
       ...updates,
       updatedAt: new Date().toISOString()
     }
-    await this.usersDB.put(updated)
-    return updated
+    const result = await this.usersDB.put(updated)
+    return { ...updated, _rev: result.rev }
   }
 
   async getAllUsers(): Promise<UserDocument[]> {
     try {
-      const result = await this.usersDB.getAll()
-      return result as UserDocument[]
+      const result = await this.usersDB.find({
+        selector: { type: 'user' }
+      })
+      return result.docs as UserDocument[]
     } catch (error) {
       return []
     }
@@ -318,8 +337,10 @@ class ZoomiesDatabase {
 
   async getUsersByRole(role: 'teacher' | 'student'): Promise<UserDocument[]> {
     try {
-      const result = await this.usersDB.find({ role })
-      return result as UserDocument[]
+      const result = await this.usersDB.find({
+        selector: { role, type: 'user' }
+      })
+      return result.docs as UserDocument[]
     } catch (error) {
       return []
     }
@@ -334,19 +355,22 @@ class ZoomiesDatabase {
       schemaVersion: SCHEMA_VERSION,
       createdAt: now,
       updatedAt: now,
-      type: 'course' // Automatically set type
+      type: 'course'
     }
 
-    await this.coursesDB.put(courseDoc)
-    return courseDoc
+    const result = await this.coursesDB.put(courseDoc)
+    return { ...courseDoc, _rev: result.rev }
   }
 
   async getCourseById(courseId: string): Promise<CourseDocument | null> {
     try {
       const doc = await this.coursesDB.get(courseId)
       return doc as CourseDocument
-    } catch (error) {
-      return null
+    } catch (error: any) {
+      if (error.status === 404) {
+        return null
+      }
+      throw error
     }
   }
 
@@ -357,14 +381,16 @@ class ZoomiesDatabase {
       ...updates,
       updatedAt: new Date().toISOString()
     }
-    await this.coursesDB.put(updated)
-    return updated
+    const result = await this.coursesDB.put(updated)
+    return { ...updated, _rev: result.rev }
   }
 
   async getCoursesByTeacher(teacherId: string): Promise<CourseDocument[]> {
     try {
-      const result = await this.coursesDB.find({ teacherId })
-      return result as CourseDocument[]
+      const result = await this.coursesDB.find({
+        selector: { teacherId, type: 'course' }
+      })
+      return result.docs as CourseDocument[]
     } catch (error) {
       console.error('Error in getCoursesByTeacher:', error)
       return []
@@ -373,10 +399,14 @@ class ZoomiesDatabase {
 
   async getCoursesByStudent(studentId: string): Promise<CourseDocument[]> {
     try {
-      const allCourses = await this.coursesDB.getAll()
-      return allCourses.filter(course => 
-        course.studentIds?.includes(studentId) && course.isActive
-      ) as CourseDocument[]
+      const result = await this.coursesDB.find({
+        selector: { 
+          studentIds: { $in: [studentId] },
+          isActive: true,
+          type: 'course'
+        }
+      })
+      return result.docs as CourseDocument[]
     } catch (error) {
       return []
     }
@@ -384,8 +414,10 @@ class ZoomiesDatabase {
 
   async getAllCourses(): Promise<CourseDocument[]> {
     try {
-      const result = await this.coursesDB.getAll()
-      return result as CourseDocument[]
+      const result = await this.coursesDB.find({
+        selector: { type: 'course' }
+      })
+      return result.docs as CourseDocument[]
     } catch (error) {
       return []
     }
@@ -404,8 +436,8 @@ class ZoomiesDatabase {
         studentIds: [...course.studentIds, studentId],
         updatedAt: new Date().toISOString()
       }
-      await this.coursesDB.put(updatedCourse)
-      return updatedCourse
+      const result = await this.coursesDB.put(updatedCourse)
+      return { ...updatedCourse, _rev: result.rev }
     }
 
     return course
@@ -422,8 +454,8 @@ class ZoomiesDatabase {
       studentIds: course.studentIds.filter(id => id !== studentId),
       updatedAt: new Date().toISOString()
     }
-    await this.coursesDB.put(updatedCourse)
-    return updatedCourse
+    const result = await this.coursesDB.put(updatedCourse)
+    return { ...updatedCourse, _rev: result.rev }
   }
 
   async enrollStudentInCourse(studentId: string, courseId: string): Promise<UserDocument> {
@@ -438,8 +470,8 @@ class ZoomiesDatabase {
         enrolledCourses: [...user.enrolledCourses, courseId],
         updatedAt: new Date().toISOString()
       }
-      await this.usersDB.put(updatedUser)
-      return updatedUser
+      const result = await this.usersDB.put(updatedUser)
+      return { ...updatedUser, _rev: result.rev }
     }
 
     return user
@@ -456,8 +488,8 @@ class ZoomiesDatabase {
       enrolledCourses: user.enrolledCourses.filter(id => id !== courseId),
       updatedAt: new Date().toISOString()
     }
-    await this.usersDB.put(updatedUser)
-    return updatedUser
+    const result = await this.usersDB.put(updatedUser)
+    return { ...updatedUser, _rev: result.rev }
   }
 
   // Session management methods
@@ -471,16 +503,19 @@ class ZoomiesDatabase {
       updatedAt: now
     }
 
-    await this.sessionsDB.put(sessionDoc)
-    return sessionDoc
+    const result = await this.sessionsDB.put(sessionDoc)
+    return { ...sessionDoc, _rev: result.rev }
   }
 
   async getSessionById(sessionId: string): Promise<SessionDocument | null> {
     try {
       const doc = await this.sessionsDB.get(sessionId)
       return doc as SessionDocument
-    } catch (error) {
-      return null
+    } catch (error: any) {
+      if (error.status === 404) {
+        return null
+      }
+      throw error
     }
   }
 
@@ -491,14 +526,16 @@ class ZoomiesDatabase {
       ...updates,
       updatedAt: new Date().toISOString()
     }
-    await this.sessionsDB.put(updated)
-    return updated
+    const result = await this.sessionsDB.put(updated)
+    return { ...updated, _rev: result.rev }
   }
 
   async getAllSessions(): Promise<SessionDocument[]> {
     try {
-      const result = await this.sessionsDB.getAll()
-      return result as SessionDocument[]
+      const result = await this.sessionsDB.find({
+        selector: { type: 'session' }
+      })
+      return result.docs as SessionDocument[]
     } catch (error) {
       return []
     }
@@ -515,14 +552,16 @@ class ZoomiesDatabase {
       updatedAt: now
     }
 
-    await this.eventsDB.put(eventDoc)
-    return eventDoc
+    const result = await this.eventsDB.put(eventDoc)
+    return { ...eventDoc, _rev: result.rev }
   }
 
   async getEventsBySession(sessionId: string): Promise<EventDocument[]> {
     try {
-      const result = await this.eventsDB.find({ sessionId })
-      return result as EventDocument[]
+      const result = await this.eventsDB.find({
+        selector: { sessionId }
+      })
+      return result.docs as EventDocument[]
     } catch (error) {
       return []
     }
@@ -530,8 +569,10 @@ class ZoomiesDatabase {
 
   async getAllEvents(): Promise<EventDocument[]> {
     try {
-      const result = await this.eventsDB.getAll()
-      return result as EventDocument[]
+      const result = await this.eventsDB.find({
+        selector: { type: 'event' }
+      })
+      return result.docs as EventDocument[]
     } catch (error) {
       return []
     }
@@ -548,14 +589,16 @@ class ZoomiesDatabase {
       updatedAt: now
     }
 
-    await this.metricsDB.put(metricsDoc)
-    return metricsDoc
+    const result = await this.metricsDB.put(metricsDoc)
+    return { ...metricsDoc, _rev: result.rev }
   }
 
   async getMetricsByUser(userId: string): Promise<MetricsDocument[]> {
     try {
-      const result = await this.metricsDB.find({ userId })
-      return result as MetricsDocument[]
+      const result = await this.metricsDB.find({
+        selector: { userId }
+      })
+      return result.docs as MetricsDocument[]
     } catch (error) {
       return []
     }
@@ -563,8 +606,10 @@ class ZoomiesDatabase {
 
   async getAllMetrics(): Promise<MetricsDocument[]> {
     try {
-      const result = await this.metricsDB.getAll()
-      return result as MetricsDocument[]
+      const result = await this.metricsDB.find({
+        selector: { type: 'metrics' }
+      })
+      return result.docs as MetricsDocument[]
     } catch (error) {
       return []
     }
@@ -581,8 +626,10 @@ class ZoomiesDatabase {
 
   async getMetricsBySession(sessionId: string): Promise<MetricsDocument[]> {
     try {
-      const result = await this.metricsDB.find({ sessionId })
-      return result as MetricsDocument[]
+      const result = await this.metricsDB.find({
+        selector: { sessionId }
+      })
+      return result.docs as MetricsDocument[]
     } catch (error) {
       return []
     }
@@ -595,16 +642,18 @@ class ZoomiesDatabase {
       ...updates,
       updatedAt: new Date().toISOString()
     }
-    await this.metricsDB.put(updated)
-    return updated
+    const result = await this.metricsDB.put(updated)
+    return { ...updated, _rev: result.rev }
   }
 
   async getRecentSessions(limit: number = 10): Promise<SessionDocument[]> {
     try {
-      const allSessions = await this.sessionsDB.getAll()
-      return allSessions
-        .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
-        .slice(0, limit) as SessionDocument[]
+      const result = await this.sessionsDB.find({
+        selector: { type: 'session' },
+        sort: [{ startedAt: 'desc' }],
+        limit
+      })
+      return result.docs as SessionDocument[]
     } catch (error) {
       return []
     }
@@ -612,10 +661,12 @@ class ZoomiesDatabase {
 
   async getRecentEvents(limit: number = 100): Promise<EventDocument[]> {
     try {
-      const allEvents = await this.eventsDB.getAll()
-      return allEvents
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-        .slice(0, limit) as EventDocument[]
+      const result = await this.eventsDB.find({
+        selector: { type: 'event' },
+        sort: [{ timestamp: 'desc' }],
+        limit
+      })
+      return result.docs as EventDocument[]
     } catch (error) {
       return []
     }
@@ -652,15 +703,5 @@ class ZoomiesDatabase {
 }
 
 // Export singleton instance
-export const zoomiesDB = new ZoomiesDatabase()
+export const zoomiesDB = new CouchDBDatabase()
 export default zoomiesDB
-
-
-
-
-
-
-
-
-
-

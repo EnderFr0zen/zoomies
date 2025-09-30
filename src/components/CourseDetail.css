@@ -1,7 +1,37 @@
 .course-detail-container {
   padding: 24px;
-  max-width: 1000px;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6B8E23;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-screen p {
+  margin: 0;
+  color: #666;
+  font-size: 16px;
 }
 
 /* Responsive design for course detail */
@@ -43,12 +73,10 @@
     font-size: 1.3rem;
   }
   
-  .video-list,
   .reading-list {
     gap: 12px;
   }
   
-  .video-item,
   .reading-item {
     padding: 12px;
   }
@@ -79,19 +107,44 @@
     font-size: 1.2rem;
   }
   
-  .video-item,
   .reading-item {
     padding: 10px;
   }
   
-  .video-item h4,
   .reading-item h4 {
     font-size: 1rem;
   }
   
-  .video-item p,
   .reading-item p {
     font-size: 0.85rem;
+  }
+}
+
+/* File upload section */
+.file-upload-section {
+  margin-top: 24px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.file-upload-section h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .file-upload-section {
+    margin-top: 16px;
+    padding: 16px;
+  }
+  
+  .file-upload-section h4 {
+    font-size: 14px;
+    margin-bottom: 12px;
   }
 }
 
@@ -162,7 +215,6 @@
 }
 
 .instructions-section,
-.videos-section,
 .readings-section {
   background: white;
   border-radius: 12px;
@@ -171,7 +223,6 @@
 }
 
 .instructions-section h2,
-.videos-section h2,
 .readings-section h2 {
   color: #333;
   margin: 0 0 20px 0;
@@ -189,6 +240,53 @@
   border-radius: 8px;
   border: 1px solid #e1e5e9;
   margin: 0;
+}
+
+.markdown-content {
+  line-height: 1.6;
+  color: #333;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e1e5e9;
+  margin: 0;
+}
+
+.markdown-content h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #6B8E23;
+}
+
+.markdown-content h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #34495e;
+  margin: 24px 0 12px 0;
+}
+
+.markdown-content h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #34495e;
+  margin: 20px 0 8px 0;
+}
+
+.markdown-content strong {
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.markdown-content em {
+  font-style: italic;
+  color: #7f8c8d;
+}
+
+.markdown-content br {
+  margin-bottom: 8px;
 }
 
 .edit-section {
@@ -251,25 +349,7 @@
   background: #5a6268;
 }
 
-.videos-list {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
 
-.video-item {
-  border: 1px solid #e1e5e9;
-  border-radius: 8px;
-  padding: 20px;
-  background: #f8f9fa;
-}
-
-.video-item h3 {
-  color: #333;
-  margin: 0 0 16px 0;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
 
 .readings-list {
   display: flex;
@@ -291,6 +371,32 @@
 .reading-item:hover {
   background: #e9ecef;
   border-color: #667eea;
+}
+
+.reading-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.view-button {
+  background: #6B8E23;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.view-button:hover {
+  background: #5a7a1e;
+  transform: translateY(-1px);
 }
 
 .reading-icon {
@@ -422,7 +528,6 @@
   }
   
   .instructions-section,
-  .videos-section,
   .readings-section {
     padding: 20px;
   }

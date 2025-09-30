@@ -1,5 +1,5 @@
 import type { EventDocument, MetricsDocument, SessionDocument } from './types'
-import { zoomiesDB } from './database'
+import { zoomiesDB } from './couchdb-simple'
 
 // 指標計算器類
 export class MetricsCalculator {
@@ -253,8 +253,9 @@ export class MetricsCalculator {
 
     // 獲取每個會話的指標
     for (const session of filteredSessions) {
-      const metrics = await zoomiesDB.getMetricsBySession(session._id)
-      if (metrics) {
+      const metricsArray = await zoomiesDB.getMetricsBySession(session._id)
+      if (metricsArray && metricsArray.length > 0) {
+        const metrics = metricsArray[0] // Get the most recent metrics
         totalFocusPercentage += metrics.focusPercentage
         totalNudges += metrics.totalNudges
         totalDuration += metrics.totalSessionTime
@@ -287,13 +288,17 @@ export class MetricsCalculator {
     let secondHalfFocus = 0
 
     for (const session of firstHalf) {
-      const metrics = await zoomiesDB.getMetricsBySession(session._id)
-      if (metrics) firstHalfFocus += metrics.focusPercentage
+      const metricsArray = await zoomiesDB.getMetricsBySession(session._id)
+      if (metricsArray && metricsArray.length > 0) {
+        firstHalfFocus += metricsArray[0].focusPercentage
+      }
     }
 
     for (const session of secondHalf) {
-      const metrics = await zoomiesDB.getMetricsBySession(session._id)
-      if (metrics) secondHalfFocus += metrics.focusPercentage
+      const metricsArray = await zoomiesDB.getMetricsBySession(session._id)
+      if (metricsArray && metricsArray.length > 0) {
+        secondHalfFocus += metricsArray[0].focusPercentage
+      }
     }
 
     const improvementTrend = firstHalf.length > 0 && secondHalf.length > 0 ?

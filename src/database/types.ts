@@ -39,38 +39,21 @@ export interface CourseDocument extends BaseDocument {
   studentIds: string[]
   isActive: boolean
   content: CourseContent
-  metadata: {
-    subject: string
-    grade: string
-    semester: string
-  }
 }
 
 // Course Content
 export interface CourseContent {
   instructions: string // Course instructions in Markdown format
-  videos: VideoItem[]
   readings: ReadingItem[]
   lastModified: string
   modifiedBy: string
-}
-
-// Video Item
-export interface VideoItem {
-  id: string
-  title: string
-  type: 'youtube' | 'upload'
-  url: string
-  duration?: number
-  thumbnail?: string
-  order: number
 }
 
 // Reading Material Item
 export interface ReadingItem {
   id: string
   title: string
-  type: 'pdf' | 'ppt' | 'pptx'
+  type: 'pdf'
   url: string
   size?: number
   order: number

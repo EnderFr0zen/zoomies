@@ -1,5 +1,5 @@
 import type { EventDocument, EventType, EventData, EventBuffer } from './types'
-import { zoomiesDB } from './database'
+import { zoomiesDB } from './couchdb-simple'
 
 // 事件記錄器類
 export class EventLogger {

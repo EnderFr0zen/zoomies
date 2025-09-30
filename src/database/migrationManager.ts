@@ -1,5 +1,5 @@
 import { SCHEMA_VERSION } from './types'
-import { zoomiesDB } from './database'
+import { zoomiesDB } from './couchdb-simple'
 
 // 遷移管理器
 export class MigrationManager {

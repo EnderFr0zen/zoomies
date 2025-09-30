@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  couchdb:
+    image: couchdb:3.3
+    container_name: zoomies-couchdb
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=admin
+      - COUCHDB_PASSWORD=password
+      - COUCHDB_SECRET=mysecret
+    volumes:
+      - couchdb_data:/opt/couchdb/data
+      - ./couchdb-local.ini:/opt/couchdb/etc/local.d/couchdb-local.ini
+    networks:
+      - zoomies-network
+
+volumes:
+  couchdb_data:
+
+networks:
+  zoomies-network:
+    driver: bridge

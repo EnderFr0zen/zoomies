@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
-import { useAuth } from './hooks/useAuth'
+import { useAuth } from './hooks/useAuth.tsx'
+import { databaseSystem } from './database'
 import Login from './components/Login'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -12,13 +13,41 @@ import SimpleKoala from './components/SimpleKoala'
 function App() {
   const { isAuthenticated, isLoading, isTeacher, isStudent } = useAuth()
   const [activeTab, setActiveTab] = useState('courses')
+  const [dbInitialized, setDbInitialized] = useState(false)
 
-  if (isLoading) {
+  // Initialize database system
+  useEffect(() => {
+    const initializeDatabase = async () => {
+      try {
+        console.log('Initializing database system...')
+        
+        // Test CouchDB connection first
+        const { testCouchDBConnection } = await import('./test-couchdb-connection.js')
+        const connectionOk = await testCouchDBConnection()
+        
+        if (!connectionOk) {
+          throw new Error('CouchDB connection test failed')
+        }
+        
+        await databaseSystem.initialize()
+        setDbInitialized(true)
+        console.log('Database system initialized successfully')
+      } catch (error) {
+        console.error('Failed to initialize database system:', error)
+        // Continue with app even if database fails
+        setDbInitialized(true)
+      }
+    }
+
+    initializeDatabase()
+  }, [])
+
+  if (isLoading || !dbInitialized) {
     return (
       <div className="app">
         <div className="loading-screen">
           <div className="loading-spinner"></div>
-          <p>Loading...</p>
+          <p>{isLoading ? 'Loading...' : 'Initializing database...'}</p>
         </div>
       </div>
     )
