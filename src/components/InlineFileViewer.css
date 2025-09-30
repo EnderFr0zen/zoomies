@@ -100,7 +100,7 @@
 
 .file-viewer-content {
   position: relative;
-  height: 500px;
+  height: 680px;
   overflow: hidden;
 }
 
@@ -295,7 +295,7 @@
   }
   
   .file-viewer-content {
-    height: 400px;
+    height: 520px;
   }
 }
 
@@ -318,6 +318,6 @@
   }
   
   .file-viewer-content {
-    height: 350px;
+    height: 420px;
   }
 }

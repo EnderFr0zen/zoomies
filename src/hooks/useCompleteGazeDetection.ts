@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { zoomiesDB } from '../database/couchdb-simple'
 import type { EventType } from '../database/types'
+import { useKoalaMood } from '../context/KoalaMoodContext'
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 import type { FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision'
 
@@ -27,6 +28,7 @@ const LOOKING_AWAY_GRACE_PERIOD_MS = 450
 
 export const useCompleteGazeDetection = (courseId: string) => {
   const { user } = useAuth()
+  const { setAttentionState } = useKoalaMood()
   const [isActive, setIsActive] = useState(false)
   const [isPermissionGranted, setIsPermissionGranted] = useState(false)
   const [isDetecting, setIsDetecting] = useState(false)
@@ -42,6 +44,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
   const isLookingAtScreenRef = useRef<boolean>(false)
   const lastAttentionTimeRef = useRef<number>(0)
   const lastRawNotLookingTimeRef = useRef<number | null>(null)
+  const koalaMoodRef = useRef<'focused' | 'distracted'>('focused')
 
   // EXACT calculate_gaze_ratio from Python - NO CHANGES
   const calculateGazeRatio = useCallback((landmarks: Array<{x: number, y: number}>, p1Idx: number, p2Idx: number, centerIdx: number): number => {
@@ -458,8 +461,14 @@ export const useCompleteGazeDetection = (courseId: string) => {
         }
 
         isLookingAtScreenRef.current = isLooking
+        if (isLooking && koalaMoodRef.current !== 'focused') {
+          setAttentionState('focused')
+          koalaMoodRef.current = 'focused'
+        } else if (!isLooking && koalaMoodRef.current !== 'distracted') {
+          setAttentionState('distracted')
+          koalaMoodRef.current = 'distracted'
+        }
         lastAttentionTimeRef.current = nowMs
-
         visualizeAttention(video, faceLandmarks, statusForDisplay)
       } catch (error) {
         console.error('Error in detection loop:', error)
@@ -479,7 +488,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
       }
       animationFrameRef.current = null
     }
-  }, [isActive, isDetecting, isFaceLandmarkerReady, detectAttentionStatus, visualizeAttention, saveGazeEvent])
+  }, [isActive, isDetecting, isFaceLandmarkerReady, detectAttentionStatus, visualizeAttention, saveGazeEvent, setAttentionState])
 
   // Start detection
   const startDetection = useCallback(async () => {
@@ -551,8 +560,10 @@ export const useCompleteGazeDetection = (courseId: string) => {
     isLookingAtScreenRef.current = false
     lastAttentionTimeRef.current = 0
     lastRawNotLookingTimeRef.current = null
+    koalaMoodRef.current = 'focused'
+    setAttentionState('focused')
     console.log('Gaze detection stopped')
-  }, [])
+  }, [setAttentionState])
 
   // Toggle detection
   const toggleDetection = useCallback(() => {
@@ -583,6 +594,22 @@ export const useCompleteGazeDetection = (courseId: string) => {
     toggleDetection
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
