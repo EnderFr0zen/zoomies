@@ -19,6 +19,7 @@ const EYES_OPEN_THRESHOLD = 0.20
 const GAZE_LEFT_THRESHOLD = 0.4
 const GAZE_RIGHT_THRESHOLD = 0.6
 const LOOKING_AT_SCREEN_CONFIDENCE = 0.90
+const LOOKING_AWAY_GRACE_PERIOD_MS = 450
 
 export const useCompleteGazeDetection = (courseId: string) => {
   const { user } = useAuth()
@@ -36,6 +37,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
   const faceLandmarkerRef = useRef<FaceLandmarker | null>(null)
   const isLookingAtScreenRef = useRef<boolean>(false)
   const lastAttentionTimeRef = useRef<number>(0)
+  const lastRawNotLookingTimeRef = useRef<number | null>(null)
 
   // EXACT calculate_gaze_ratio from Python - NO CHANGES
   const calculateGazeRatio = useCallback((landmarks: Array<{x: number, y: number}>, p1Idx: number, p2Idx: number, centerIdx: number): number => {
@@ -399,13 +401,36 @@ export const useCompleteGazeDetection = (courseId: string) => {
         const faceLandmarks = result.faceLandmarks ?? []
         const attentionStatus = detectAttentionStatus(faceLandmarks)
 
-        visualizeAttention(video, faceLandmarks, attentionStatus)
-
         const nowMs = Date.now()
         const previousMs = lastAttentionTimeRef.current || nowMs
         const timeDiff = nowMs - previousMs
         const wasLooking = isLookingAtScreenRef.current
-        const isLooking = attentionStatus.looking_at_screen
+        const rawLooking = attentionStatus.looking_at_screen
+
+        let smoothedLooking = rawLooking
+        if (rawLooking) {
+          lastRawNotLookingTimeRef.current = null
+        } else {
+          const firstNotLookingAt = lastRawNotLookingTimeRef.current
+          if (firstNotLookingAt === null) {
+            lastRawNotLookingTimeRef.current = nowMs
+            smoothedLooking = wasLooking
+          } else if (nowMs - firstNotLookingAt < LOOKING_AWAY_GRACE_PERIOD_MS) {
+            smoothedLooking = wasLooking
+          } else {
+            smoothedLooking = false
+          }
+        }
+
+        const statusForDisplay = smoothedLooking === rawLooking
+          ? attentionStatus
+          : {
+              ...attentionStatus,
+              looking_at_screen: smoothedLooking,
+              student_status: smoothedLooking ? 'Student looking at the screen' : 'Student not looking at the screen'
+            }
+
+        const isLooking = smoothedLooking
 
         if (timeDiff > 0) {
           if (isLooking && !wasLooking) {
@@ -421,6 +446,8 @@ export const useCompleteGazeDetection = (courseId: string) => {
 
         isLookingAtScreenRef.current = isLooking
         lastAttentionTimeRef.current = nowMs
+
+        visualizeAttention(video, faceLandmarks, statusForDisplay)
       } catch (error) {
         console.error('Error in detection loop:', error)
       }
@@ -466,12 +493,14 @@ export const useCompleteGazeDetection = (courseId: string) => {
         videoRef.current.onloadedmetadata = () => {
           console.log('Video metadata loaded')
           lastAttentionTimeRef.current = Date.now()
+          lastRawNotLookingTimeRef.current = null
           isLookingAtScreenRef.current = false
           setIsDetecting(true)
         }
         videoRef.current.oncanplay = () => {
           console.log('Video can play')
           lastAttentionTimeRef.current = Date.now()
+          lastRawNotLookingTimeRef.current = null
           isLookingAtScreenRef.current = false
           setIsDetecting(true)
         }
@@ -508,6 +537,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
     setIsPermissionGranted(false)
     isLookingAtScreenRef.current = false
     lastAttentionTimeRef.current = 0
+    lastRawNotLookingTimeRef.current = null
     console.log('Gaze detection stopped')
   }, [])
 
