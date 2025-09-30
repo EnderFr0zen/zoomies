@@ -26,8 +26,8 @@ export const useKoalaState = () => {
     isMuted: false
   })
 
-  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const cooldownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const animationTimeoutRef = useRef<number | null>(null)
+  const cooldownTimeoutRef = useRef<number | null>(null)
 
   const canTriggerNudge = useCallback(() => {
     const now = Date.now()

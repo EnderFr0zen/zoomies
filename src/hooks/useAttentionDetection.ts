@@ -7,8 +7,8 @@ export interface AttentionEvent {
 }
 
 export const useAttentionDetection = (onAttentionEvent: (event: AttentionEvent) => void) => {
-  const inattentiveTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const focusedTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const inattentiveTimerRef = useRef<number | null>(null)
+  const focusedTimerRef = useRef<number | null>(null)
   const lastActivityRef = useRef<number>(Date.now())
   const isPageVisibleRef = useRef<boolean>(true)
   const isDistractedRef = useRef<boolean>(false)

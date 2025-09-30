@@ -33,8 +33,8 @@ export const useScreenActivity = (
     idleThreshold
   })
 
-  const idleTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const activityCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const idleTimerRef = useRef<number | null>(null)
+  const activityCheckIntervalRef = useRef<number | null>(null)
 
   // Update idle time
   const updateIdleTime = useCallback(() => {
@@ -173,8 +173,8 @@ export const useScreenActivity = (
     window.addEventListener('blur', handleFocusChange)
 
     // Add screen switch detection (if available)
-    if ('screen' in window && 'orientation' in window.screen) {
-      window.screen.addEventListener('orientationchange', handleScreenSwitch)
+    if ('orientation' in window.screen) {
+      window.addEventListener('orientationchange', handleScreenSwitch)
     }
 
     // Start activity monitoring
@@ -191,8 +191,8 @@ export const useScreenActivity = (
       window.removeEventListener('focus', handleFocusChange)
       window.removeEventListener('blur', handleFocusChange)
 
-      if ('screen' in window && 'orientation' in window.screen) {
-        window.screen.removeEventListener('orientationchange', handleScreenSwitch)
+      if ('orientation' in window.screen) {
+        window.removeEventListener('orientationchange', handleScreenSwitch)
       }
 
       // Clear timers

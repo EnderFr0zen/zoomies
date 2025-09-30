@@ -24,7 +24,7 @@ export const useSessionContext = () => {
     startTime: null as number | null
   })
   
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timerIntervalRef = useRef<number | null>(null)
 
   // Start task timer
   const startTaskTimer = useCallback(() => {

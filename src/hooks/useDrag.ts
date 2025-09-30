@@ -13,23 +13,51 @@ export const useDrag = (initialPosition: { x: number; y: number }) => {
     startPosition: { x: 0, y: 0 }
   })
 
-  const dragRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<HTMLButtonElement>(null)
   const lastPositionRef = useRef(initialPosition)
 
-  // Load saved position from localStorage
+  // Load saved position from localStorage, but ensure it's in bottom-right area
   useEffect(() => {
     const savedPosition = localStorage.getItem('koala-position')
     if (savedPosition) {
       try {
         const parsed = JSON.parse(savedPosition)
+        // Ensure position is in bottom-right area
+        const constrainedPosition = constrainToViewport(
+          parsed.x, 
+          parsed.y, 
+          150, // koala width
+          150  // koala height
+        )
         setDragState(prev => ({
           ...prev,
-          position: parsed
+          position: constrainedPosition
         }))
-        lastPositionRef.current = parsed
+        lastPositionRef.current = constrainedPosition
       } catch (error) {
         console.warn('Failed to parse saved koala position:', error)
+        // Reset to bottom-right if parsing fails
+        const bottomRightPosition = {
+          x: window.innerWidth - 150,
+          y: window.innerHeight - 150
+        }
+        setDragState(prev => ({
+          ...prev,
+          position: bottomRightPosition
+        }))
+        lastPositionRef.current = bottomRightPosition
       }
+    } else {
+      // No saved position, use bottom-right
+      const bottomRightPosition = {
+        x: window.innerWidth - 150,
+        y: window.innerHeight - 150
+      }
+      setDragState(prev => ({
+        ...prev,
+        position: bottomRightPosition
+      }))
+      lastPositionRef.current = bottomRightPosition
     }
   }, [])
 
@@ -76,7 +104,7 @@ export const useDrag = (initialPosition: { x: number; y: number }) => {
       ...prev,
       position: constrained
     }))
-  }, [dragState.isDragging, dragState.startPosition, constrainToViewport])
+  }, [dragState.isDragging, dragState.startPosition.x, dragState.startPosition.y, constrainToViewport])
 
   const handleMouseUp = useCallback(() => {
     if (!dragState.isDragging) return
@@ -90,17 +118,17 @@ export const useDrag = (initialPosition: { x: number; y: number }) => {
     savePosition(dragState.position)
     lastPositionRef.current = dragState.position
 
-    // Auto-snap back to corner after 10 seconds
+    // Auto-snap back to bottom-right corner after 10 seconds
     setTimeout(() => {
-      const cornerPosition = {
+      const bottomRightPosition = {
         x: window.innerWidth - 150,
         y: window.innerHeight - 150
       }
       setDragState(prev => ({
         ...prev,
-        position: cornerPosition
+        position: bottomRightPosition
       }))
-      savePosition(cornerPosition)
+      savePosition(bottomRightPosition)
     }, 10000)
   }, [dragState.isDragging, dragState.position, savePosition])
 
@@ -135,7 +163,7 @@ export const useDrag = (initialPosition: { x: number; y: number }) => {
       ...prev,
       position: constrained
     }))
-  }, [dragState.isDragging, dragState.startPosition, constrainToViewport])
+  }, [dragState.isDragging, dragState.startPosition.x, dragState.startPosition.y, constrainToViewport])
 
   const handleTouchEnd = useCallback(() => {
     if (!dragState.isDragging) return
