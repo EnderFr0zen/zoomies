@@ -115,7 +115,7 @@ export type EventType =
 // Event Data
 export interface EventData {
   // Attention related
-  reason?: 'no_face' | 'yaw' | 'pitch' | 'tab_hidden' | 'input_idle' | 'window_blur'
+  reason?: 'no_face' | 'yaw' | 'pitch' | 'tab_hidden' | 'tab_visible' | 'input_idle' | 'window_blur' | 'window_focus' | 'course_focus' | 'course_exit' | 'tab_navigation'
   attentionLevel?: number // 0-1
   
   // Gaze detection related

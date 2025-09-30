@@ -1,466 +1,491 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth.tsx'
 import { useCourses } from '../hooks/useCourses'
 import { zoomiesDB } from '../database'
+import type { CourseDocument, UserDocument } from '../database/types'
 import './TeacherDashboard.css'
 
-interface StudentMetrics {
+interface StudentAttentionSummary {
   studentId: string
   studentName: string
-  focusPercentage: number
-  totalSessions: number
-  averageSessionTime: number
-  lastActive: string
-  currentStatus: 'online' | 'offline' | 'in-session'
+  courseIds: string[]
+  courseNames: string[]
+  lastCourseTitle?: string
+  status: 'focused' | 'distracted' | 'idle'
+  focusMs: number
+  distractedMs: number
+  attentionLostCount: number
+  attentionPresentCount: number
+  gazeDistractionCount: number
+  timeline: number[]
+  lastEventAt: number | null
+  lastReason?: string
+}
+
+const REFRESH_INTERVAL_MS = 15_000
+const RECENT_ATTENTION_THRESHOLD_MS = 120_000
+const TIMELINE_BUCKETS = 12
+const TIMELINE_BUCKET_MS = 5 * 60 * 1000
+
+const resolveTimestamp = (value: any): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value)
+    return Number.isNaN(parsed) ? null : parsed
+  }
+  return null
+}
+
+const formatDuration = (ms: number): string => {
+  if (ms <= 0) return '0s'
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`
+  }
+  return `${seconds}s`
+}
+
+const formatRelativeTime = (timestamp: number | null): string => {
+  if (!timestamp) {
+    return 'No activity'
+  }
+  const diff = Date.now() - timestamp
+  if (diff < 15_000) return 'just now'
+  if (diff < 60_000) return `${Math.floor(diff / 1000)}s ago`
+  if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m ago`
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatReason = (reason?: string): string => {
+  switch (reason) {
+    case 'tab_hidden':
+      return 'Browser tab hidden'
+    case 'tab_visible':
+      return 'Tab visible'
+    case 'window_blur':
+      return 'Window not focused'
+    case 'window_focus':
+      return 'Window focused'
+    case 'course_focus':
+      return 'Viewing course material'
+    case 'course_exit':
+      return 'Left course page'
+    case 'tab_navigation':
+      return 'Navigated away'
+    default:
+      return reason ? reason.replace(/_/g, ' ') : '—'
+  }
+}
+
+const Sparkline: React.FC<{ data: number[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <div className="sparkline-empty">No distractions yet</div>
+  }
+
+  const width = 120
+  const height = 40
+  const max = Math.max(...data, 1)
+  const points = data.map((value, index) => {
+    const x = data.length === 1 ? width : (index / (data.length - 1)) * width
+    const y = height - (value / max) * height
+    return `${x},${y}`
+  }).join(' ')
+
+  const fillPoints = `0,${height} ${points} ${width},${height}`
+
+  return (
+    <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} role="presentation" aria-hidden="true">
+      <polyline className="sparkline-fill" points={fillPoints} />
+      <polyline className="sparkline-path" points={points} />
+    </svg>
+  )
+}
+
+interface MutableSummary extends StudentAttentionSummary {
+  attentionState: 'focused' | 'distracted'
+  attentionTransition: number | null
+  firstEventAt: number | null
+}
+
+const buildStudentSummaries = (
+  students: UserDocument[],
+  courses: CourseDocument[],
+  events: any[]
+): StudentAttentionSummary[] => {
+  const courseMap = new Map<string, CourseDocument>(courses.map(course => [course._id, course]))
+  const now = Date.now()
+
+  const summaries = new Map<string, MutableSummary>()
+
+  students.forEach(student => {
+    const enrolledCourseIds = Array.from(new Set(student.enrolledCourses || []))
+    const courseNames = enrolledCourseIds
+      .map(id => courseMap.get(id)?.title)
+      .filter((title): title is string => Boolean(title))
+
+    summaries.set(student._id, {
+      studentId: student._id,
+      studentName: student.displayName || student.username || student._id,
+      courseIds: enrolledCourseIds,
+      courseNames,
+      lastCourseTitle: courseNames[0],
+      status: 'idle',
+      focusMs: 0,
+      distractedMs: 0,
+      attentionLostCount: 0,
+      attentionPresentCount: 0,
+      gazeDistractionCount: 0,
+      timeline: new Array(TIMELINE_BUCKETS).fill(0),
+      lastEventAt: null,
+      lastReason: undefined,
+      attentionState: 'distracted',
+      attentionTransition: null,
+      firstEventAt: null
+    })
+  })
+
+  const sortedEvents = [...events].sort((a, b) => {
+    const aTs = resolveTimestamp(a.timestamp) ?? 0
+    const bTs = resolveTimestamp(b.timestamp) ?? 0
+    return aTs - bTs
+  })
+
+  for (const event of sortedEvents) {
+    const summary = summaries.get(event.userId)
+    if (!summary) continue
+
+    const timestamp = resolveTimestamp(event.timestamp)
+    if (timestamp === null) continue
+
+    const eventType = (event.eventType || event.type) as string | undefined
+    if (!eventType) continue
+
+    const data = event.data || {}
+    const reason = data.reason as string | undefined
+    const metadata = (data.metadata || {}) as Record<string, any>
+    const courseIdFromEvent = event.courseId || metadata.courseId
+
+    if (courseIdFromEvent) {
+      if (!summary.courseIds.includes(courseIdFromEvent)) {
+        summary.courseIds.push(courseIdFromEvent)
+        const course = courseMap.get(courseIdFromEvent)
+        if (course && !summary.courseNames.includes(course.title)) {
+          summary.courseNames.push(course.title)
+        }
+      }
+      if (courseMap.get(courseIdFromEvent)?.title) {
+        summary.lastCourseTitle = courseMap.get(courseIdFromEvent)?.title
+      } else if (typeof metadata.courseTitle === 'string') {
+        summary.lastCourseTitle = metadata.courseTitle
+      }
+    } else if (typeof metadata.courseTitle === 'string') {
+      summary.lastCourseTitle = metadata.courseTitle
+    }
+
+    summary.lastEventAt = summary.lastEventAt ? Math.max(summary.lastEventAt, timestamp) : timestamp
+    if (reason) {
+      summary.lastReason = reason
+    }
+
+    if (!summary.firstEventAt) {
+      summary.firstEventAt = timestamp
+    }
+
+    if (eventType === 'attention:lost' || eventType === 'gaze:looking_away') {
+      const diff = now - timestamp
+      if (diff >= 0 && diff <= TIMELINE_BUCKETS * TIMELINE_BUCKET_MS) {
+        const bucketIndex = Math.min(
+          TIMELINE_BUCKETS - 1,
+          TIMELINE_BUCKETS - 1 - Math.floor(diff / TIMELINE_BUCKET_MS)
+        )
+        summary.timeline[bucketIndex] += 1
+      }
+    }
+
+    switch (eventType) {
+      case 'attention:present': {
+        summary.attentionPresentCount += 1
+        if (summary.attentionState === 'distracted' && summary.attentionTransition !== null) {
+          summary.distractedMs += Math.max(0, timestamp - summary.attentionTransition)
+        }
+        summary.attentionState = 'focused'
+        summary.attentionTransition = timestamp
+        break
+      }
+      case 'attention:lost': {
+        summary.attentionLostCount += 1
+        if (summary.attentionState === 'focused' && summary.attentionTransition !== null) {
+          summary.focusMs += Math.max(0, timestamp - summary.attentionTransition)
+        }
+        summary.attentionState = 'distracted'
+        summary.attentionTransition = timestamp
+        break
+      }
+      case 'gaze:looking_away': {
+        summary.gazeDistractionCount += 1
+        if (typeof data.gazeDuration === 'number') {
+          summary.distractedMs += data.gazeDuration
+        }
+        break
+      }
+      case 'gaze:back_to_screen': {
+        if (typeof data.gazeDuration === 'number') {
+          summary.focusMs += data.gazeDuration
+        }
+        break
+      }
+      default:
+        break
+    }
+  }
+
+  const results: StudentAttentionSummary[] = []
+
+  summaries.forEach(summary => {
+    if (summary.attentionTransition !== null) {
+      const elapsed = Math.max(0, now - summary.attentionTransition)
+      if (summary.attentionState === 'focused') {
+        summary.focusMs += elapsed
+      } else {
+        summary.distractedMs += elapsed
+      }
+    }
+
+    const courseNames = summary.courseIds
+      .map(id => courseMap.get(id)?.title)
+      .filter((title): title is string => Boolean(title))
+
+    const status: StudentAttentionSummary['status'] = (() => {
+      if (!summary.lastEventAt) return 'idle'
+      const sinceLast = now - summary.lastEventAt
+      if (summary.attentionState === 'focused' && sinceLast < RECENT_ATTENTION_THRESHOLD_MS) {
+        return 'focused'
+      }
+      if (summary.attentionState === 'distracted' && sinceLast < RECENT_ATTENTION_THRESHOLD_MS) {
+        return 'distracted'
+      }
+      return 'idle'
+    })()
+
+    results.push({
+      studentId: summary.studentId,
+      studentName: summary.studentName,
+      courseIds: summary.courseIds,
+      courseNames,
+      lastCourseTitle: summary.lastCourseTitle,
+      status,
+      focusMs: summary.focusMs,
+      distractedMs: summary.distractedMs,
+      attentionLostCount: summary.attentionLostCount,
+      attentionPresentCount: summary.attentionPresentCount,
+      gazeDistractionCount: summary.gazeDistractionCount,
+      timeline: summary.timeline,
+      lastEventAt: summary.lastEventAt,
+      lastReason: summary.lastReason
+    })
+  })
+
+  return results.sort((a, b) => {
+    const statusOrder = { distracted: 0, focused: 1, idle: 2 }
+    if (statusOrder[a.status] !== statusOrder[b.status]) {
+      return statusOrder[a.status] - statusOrder[b.status]
+    }
+    return (b.lastEventAt ?? 0) - (a.lastEventAt ?? 0)
+  })
 }
 
 const TeacherDashboard: React.FC = () => {
-  const { user } = useAuth()
-  const { courses } = useCourses(user?._id, user?.role)
-  const [students, setStudents] = useState<StudentMetrics[]>([])
-  const [allStudents, setAllStudents] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'students'>('overview')
-  const [showCreateCourse, setShowCreateCourse] = useState(false)
-  const [showAddStudents, setShowAddStudents] = useState(false)
-  const [selectedCourse, setSelectedCourse] = useState<string | null>(null)
-  
-  // Course creation form state
-  const [newCourse, setNewCourse] = useState({
-    title: '',
-    description: ''
-  })
+  const { user, isTeacher } = useAuth()
+  const { courses, isLoading } = useCourses(user?._id, user?.role)
+  const [studentSummaries, setStudentSummaries] = useState<StudentAttentionSummary[]>([])
+  const [isFetching, setIsFetching] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const trackedStudentIds = useMemo(() => {
+    if (!isTeacher) return []
+    const ids = new Set<string>()
+    courses.forEach(course => {
+      course.studentIds.forEach(id => ids.add(id))
+    })
+    return Array.from(ids)
+  }, [courses, isTeacher])
+
+  const trackedCourseIds = useMemo(() => courses.map(course => course._id), [courses])
+
+  const loadAttentionData = useCallback(async () => {
+    if (!user?._id || !isTeacher || trackedStudentIds.length === 0) {
+      setStudentSummaries([])
+      setLastUpdated(Date.now())
+      return
+    }
+
+    setIsFetching(true)
+    try {
+      const [students, events] = await Promise.all([
+        zoomiesDB.getUsersByIds(trackedStudentIds),
+        zoomiesDB.getEventsByUsers(trackedStudentIds, {
+          limit: 1500,
+          courseIds: trackedCourseIds
+        })
+      ])
+
+      const summaries = buildStudentSummaries(students, courses, events)
+      setStudentSummaries(summaries)
+      setLastUpdated(Date.now())
+      setErrorMessage(null)
+    } catch (error) {
+      console.error('Failed to load attention analytics', error)
+      setErrorMessage('Unable to load attention analytics right now.')
+    } finally {
+      setIsFetching(false)
+    }
+  }, [courses, isTeacher, trackedCourseIds, trackedStudentIds, user?._id])
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      try {
-        // Load all students
-        const studentsData = await zoomiesDB.getUsersByRole('student')
-        setAllStudents(studentsData)
-        
-        // Convert to StudentMetrics format
-        const studentMetrics: StudentMetrics[] = studentsData.map(student => ({
-          studentId: student._id,
-          studentName: student.displayName,
-          focusPercentage: Math.floor(Math.random() * 40) + 60, // Mock data for now
-          totalSessions: Math.floor(Math.random() * 20) + 5,
-          averageSessionTime: Math.floor(Math.random() * 30) + 30,
-          lastActive: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000).toISOString(),
-          currentStatus: Math.random() > 0.7 ? 'in-session' : Math.random() > 0.5 ? 'online' : 'offline'
-        }))
-        
-        setStudents(studentMetrics)
-      } catch (error) {
-        console.error('Failed to load data:', error)
-      }
-      setIsLoading(false)
-    }
+    if (!isTeacher || isLoading) return
+    loadAttentionData()
+    const interval = window.setInterval(loadAttentionData, REFRESH_INTERVAL_MS)
+    return () => window.clearInterval(interval)
+  }, [isTeacher, isLoading, loadAttentionData])
 
-    loadData()
-  }, [])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'in-session': return '#28a745'
-      case 'online': return '#17a2b8'
-      case 'offline': return '#6c757d'
-      default: return '#6c757d'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'in-session': return 'Learning'
-      case 'online': return 'Online'
-      case 'offline': return 'Offline'
-      default: return 'Unknown'
-    }
-  }
-
-  const getFocusLevel = (percentage: number) => {
-    if (percentage >= 80) return { level: 'Excellent', color: '#28a745' }
-    if (percentage >= 60) return { level: 'Good', color: '#ffc107' }
-    return { level: 'Needs Improvement', color: '#dc3545' }
-  }
-
-  // Course management functions
-  const handleCreateCourse = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user?._id) return
-
-    try {
-      await zoomiesDB.createCourse({
-        title: newCourse.title,
-        description: newCourse.description,
-        teacherId: user._id,
-        studentIds: [],
-        isActive: true,
-        content: {
-          instructions: `# ${newCourse.title}\n\nWelcome to this course! Please follow the instructions below.`,
-          readings: [],
-          lastModified: new Date().toISOString(),
-          modifiedBy: user._id
-        }
-      })
-
-      // Reset form
-      setNewCourse({
-        title: '',
-        description: ''
-      })
-      setShowCreateCourse(false)
-      
-      // Refresh courses (this will trigger a re-render)
-      window.location.reload()
-    } catch (error) {
-      console.error('Failed to create course:', error)
-      alert('Failed to create course. Please try again.')
-    }
-  }
-
-  const handleAddStudentsToCourse = async (studentIds: string[]) => {
-    if (!selectedCourse) return
-
-    try {
-      const course = await zoomiesDB.getCourseById(selectedCourse)
-      if (!course) return
-
-      const updatedStudentIds = [...new Set([...course.studentIds, ...studentIds])]
-      await zoomiesDB.updateCourse(selectedCourse, {
-        studentIds: updatedStudentIds
-      })
-
-      setShowAddStudents(false)
-      setSelectedCourse(null)
-      window.location.reload()
-    } catch (error) {
-      console.error('Failed to add students to course:', error)
-      alert('Failed to add students to course. Please try again.')
-    }
-  }
-
-
-  const getAvailableStudents = (courseId: string) => {
-    const course = courses.find(c => c._id === courseId)
-    if (!course) return allStudents
-    return allStudents.filter(student => !course.studentIds.includes(student._id))
+  if (!isTeacher) {
+    return (
+      <div className="teacher-dashboard">
+        <div className="empty-state">
+          <h3>Teacher dashboard unavailable</h3>
+          <p>Sign in with a teacher account to monitor student attention.</p>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {
     return (
       <div className="teacher-dashboard">
         <div className="loading">
-          <div className="loading-spinner"></div>
-          <p>Loading student data...</p>
+          <div className="loading-spinner" />
+          <p>Loading your courses…</p>
         </div>
       </div>
     )
   }
 
+  const focusedNow = studentSummaries.filter(summary => summary.status === 'focused').length
+  const distractedNow = studentSummaries.filter(summary => summary.status === 'distracted').length
+  const totalDistractions = studentSummaries.reduce((acc, summary) => acc + summary.attentionLostCount + summary.gazeDistractionCount, 0)
+  const aggregateFocusMs = studentSummaries.reduce((acc, summary) => acc + summary.focusMs, 0)
+
   return (
     <div className="teacher-dashboard">
       <div className="dashboard-header">
-        <h1>Teacher Dashboard</h1>
-        <p>Manage courses, students, and monitor learning progress</p>
+        <div className="dashboard-title">
+          <h1>Attention Overview</h1>
+          <p>Live pulse of every student across your courses.</p>
+        </div>
+        <div className="dashboard-actions">
+          {lastUpdated && (
+            <span className="refresh-indicator">Updated {formatRelativeTime(lastUpdated)}</span>
+          )}
+          <button
+            type="button"
+            className="refresh-button"
+            onClick={loadAttentionData}
+            disabled={isFetching}
+          >
+            {isFetching ? 'Refreshing…' : 'Refresh now'}
+          </button>
+        </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="dashboard-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          📊 Overview
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'courses' ? 'active' : ''}`}
-          onClick={() => setActiveTab('courses')}
-        >
-          📚 Courses
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'students' ? 'active' : ''}`}
-          onClick={() => setActiveTab('students')}
-        >
-          👥 Students
-        </button>
+      {errorMessage && (
+        <div className="error-banner">{errorMessage}</div>
+      )}
+
+      <div className="summary-grid">
+        <div className="summary-card">
+          <span className="summary-label">Students focused now</span>
+          <span className="summary-value">{focusedNow}</span>
+          <span className="summary-sub">out of {studentSummaries.length}</span>
+        </div>
+        <div className="summary-card distracted">
+          <span className="summary-label">Currently distracted</span>
+          <span className="summary-value">{distractedNow}</span>
+          <span className="summary-sub">needs nudge</span>
+        </div>
+        <div className="summary-card">
+          <span className="summary-label">Distraction events (today)</span>
+          <span className="summary-value">{totalDistractions}</span>
+          <span className="summary-sub">gaze + attention</span>
+        </div>
+        <div className="summary-card">
+          <span className="summary-label">Aggregate focus time</span>
+          <span className="summary-value">{formatDuration(aggregateFocusMs)}</span>
+          <span className="summary-sub">since first log</span>
+        </div>
       </div>
 
-      {/* Overview Tab */}
-      {activeTab === 'overview' && (
-        <>
-          <div className="dashboard-stats">
-            <div className="stat-card">
-              <div className="stat-icon">👥</div>
-              <div className="stat-content">
-                <h3>{students.length}</h3>
-                <p>Total Students</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">📚</div>
-              <div className="stat-content">
-                <h3>{courses.length}</h3>
-                <p>Total Courses</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">📊</div>
-              <div className="stat-content">
-                <h3>{Math.round(students.reduce((acc, s) => acc + s.focusPercentage, 0) / students.length)}%</h3>
-                <p>Average Focus</p>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">⏱️</div>
-              <div className="stat-content">
-                <h3>{Math.round(students.reduce((acc, s) => acc + s.averageSessionTime, 0) / students.length)}</h3>
-                <p>Avg Study Time (min)</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="students-section">
-            <h2>Student List</h2>
-            <div className="students-grid">
-              {students.map((student) => {
-                const focusLevel = getFocusLevel(student.focusPercentage)
-                return (
-                  <div 
-                    key={student.studentId} 
-                    className={`student-card ${selectedStudent === student.studentId ? 'selected' : ''}`}
-                    onClick={() => setSelectedStudent(selectedStudent === student.studentId ? null : student.studentId)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        setSelectedStudent(selectedStudent === student.studentId ? null : student.studentId)
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="student-header">
-                      <div className="student-avatar">
-                        {student.studentName.charAt(0)}
-                      </div>
-                      <div className="student-info">
-                        <h3>{student.studentName}</h3>
-                        <div 
-                          className="status-indicator"
-                          style={{ backgroundColor: getStatusColor(student.currentStatus) }}
-                        >
-                          {getStatusText(student.currentStatus)}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="student-metrics">
-                      <div className="metric">
-                        <span className="metric-label">Focus</span>
-                        <div className="metric-value">
-                          <span 
-                            className="focus-percentage"
-                            style={{ color: focusLevel.color }}
-                          >
-                            {student.focusPercentage}%
-                          </span>
-                          <span className="focus-level" style={{ color: focusLevel.color }}>
-                            {focusLevel.level}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="metric">
-                        <span className="metric-label">Study Sessions</span>
-                        <span className="metric-value">{student.totalSessions}</span>
-                      </div>
-
-                      <div className="metric">
-                        <span className="metric-label">Avg Duration</span>
-                        <span className="metric-value">{student.averageSessionTime} min</span>
-                      </div>
-                    </div>
-
-                    <div className="student-footer">
-                      <span className="last-active">
-                        Last Active: {new Date(student.lastActive).toLocaleString('en-US')}
-                      </span>
-                    </div>
-
-                    {selectedStudent === student.studentId && (
-                      <div className="student-details">
-                        <h4>Details</h4>
-                        <div className="detail-item">
-                          <span>Student ID:</span>
-                          <span>{student.studentId}</span>
-                        </div>
-                        <div className="detail-item">
-                          <span>Total Study Time:</span>
-                          <span>{student.totalSessions * student.averageSessionTime} min</span>
-                        </div>
-                        <div className="detail-item">
-                          <span>Study Efficiency:</span>
-                          <span style={{ color: focusLevel.color }}>
-                            {focusLevel.level}
-                          </span>
-                        </div>
-                      </div>
+      {studentSummaries.length === 0 ? (
+        <div className="empty-state">
+          <h3>No student activity yet</h3>
+          <p>Once learners join your courses, their focus metrics will appear here.</p>
+        </div>
+      ) : (
+        <div className="student-grid">
+          {studentSummaries.map(summary => (
+            <div key={summary.studentId} className="student-card">
+              <header>
+                <div>
+                  <div className="student-name">{summary.studentName}</div>
+                  <div className="student-meta">
+                    {summary.lastCourseTitle && (
+                      <span>Latest course: {summary.lastCourseTitle}</span>
                     )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Courses Tab */}
-      {activeTab === 'courses' && (
-        <div className="courses-section">
-          <div className="section-header">
-            <h2>Course Management</h2>
-            <button 
-              className="create-course-btn"
-              onClick={() => setShowCreateCourse(true)}
-            >
-              ➕ Create New Course
-            </button>
-          </div>
-
-          <div className="courses-grid">
-            {courses.map((course) => (
-              <div key={course._id} className="course-card">
-                <div className="course-header">
-                  <h3>{course.title}</h3>
-                </div>
-                <p className="course-description">{course.description}</p>
-                <div className="course-meta">
-                  <span>Students: {course.studentIds.length}</span>
-                </div>
-                <div className="course-actions">
-                  <button 
-                    className="manage-students-btn"
-                    onClick={() => {
-                      setSelectedCourse(course._id)
-                      setShowAddStudents(true)
-                    }}
-                  >
-                    👥 Manage Students
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Students Tab */}
-      {activeTab === 'students' && (
-        <div className="students-management">
-          <h2>Student Management</h2>
-          <div className="students-list">
-            {allStudents.map((student) => (
-              <div key={student._id} className="student-item">
-                <div className="student-info">
-                  <div className="student-avatar">{student.displayName.charAt(0)}</div>
-                  <div>
-                    <h4>{student.displayName}</h4>
-                    <p>{student.email}</p>
+                    <span>Last activity: {formatRelativeTime(summary.lastEventAt)}</span>
+                    <span>Reason: {formatReason(summary.lastReason)}</span>
                   </div>
                 </div>
-                <div className="student-courses">
-                  <span>Enrolled in {student.enrolledCourses?.length || 0} courses</span>
+                <span className={`status-chip ${summary.status}`}>
+                  {summary.status === 'focused' && 'Focused'}
+                  {summary.status === 'distracted' && 'Distracted'}
+                  {summary.status === 'idle' && 'Idle'}
+                </span>
+              </header>
+
+              <div className="student-stats">
+                <div className="stat-pill">
+                  <span className="label">Focus time</span>
+                  <span className="value">{formatDuration(summary.focusMs)}</span>
+                </div>
+                <div className="stat-pill">
+                  <span className="label">Distracted time</span>
+                  <span className="value">{formatDuration(summary.distractedMs)}</span>
+                </div>
+                <div className="stat-pill">
+                  <span className="label">Distractions</span>
+                  <span className="value">{summary.attentionLostCount + summary.gazeDistractionCount}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Create Course Modal */}
-      {showCreateCourse && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Create New Course</h3>
-              <button 
-                className="close-btn"
-                onClick={() => setShowCreateCourse(false)}
-              >
-                ✕
-              </button>
+              <div className="student-trend">
+                <label>Recent distraction trend (last hour)</label>
+                <Sparkline data={summary.timeline} />
+                <div className="timeline-scale">
+                  <span>Older</span>
+                  <span>Now</span>
+                </div>
+              </div>
             </div>
-            <form onSubmit={handleCreateCourse} className="course-form">
-              <div className="form-group">
-                <label>Course Title</label>
-                <input
-                  type="text"
-                  value={newCourse.title}
-                  onChange={(e) => setNewCourse({...newCourse, title: e.target.value})}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea
-                  value={newCourse.description}
-                  onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
-                  rows={3}
-                  required
-                />
-              </div>
-              <div className="form-actions">
-                <button type="button" onClick={() => setShowCreateCourse(false)}>
-                  Cancel
-                </button>
-                <button type="submit">Create Course</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Students Modal */}
-      {showAddStudents && selectedCourse && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Add Students to Course</h3>
-              <button 
-                className="close-btn"
-                onClick={() => {
-                  setShowAddStudents(false)
-                  setSelectedCourse(null)
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="students-selection">
-              <h4>Available Students</h4>
-              <div className="students-checkbox-list">
-                {getAvailableStudents(selectedCourse).map((student) => (
-                  <label key={student._id} className="student-checkbox-item">
-                    <input
-                      type="checkbox"
-                      value={student._id}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          handleAddStudentsToCourse([student._id])
-                        }
-                      }}
-                    />
-                    <span>{student.displayName} ({student.email})</span>
-                  </label>
-                ))}
-              </div>
-              {getAvailableStudents(selectedCourse).length === 0 && (
-                <p>All students are already enrolled in this course.</p>
-              )}
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>

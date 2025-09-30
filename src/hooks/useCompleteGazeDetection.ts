@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { zoomiesDB } from '../database/couchdb-simple'
+import type { EventType } from '../database/types'
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 import type { FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision'
+
+type GazeEventType = Extract<EventType, 'gaze:focused' | 'gaze:distracted' | 'gaze:looking_away' | 'gaze:back_to_screen'>
+
 
 // EXACT constants from Python version - NO CHANGES
 const LEFT_EYE_INDICES = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
@@ -19,7 +23,7 @@ const EYES_OPEN_THRESHOLD = 0.20
 const GAZE_LEFT_THRESHOLD = 0.4
 const GAZE_RIGHT_THRESHOLD = 0.6
 const LOOKING_AT_SCREEN_CONFIDENCE = 0.90
-const LOOKING_AWAY_GRACE_PERIOD_MS = 900
+const LOOKING_AWAY_GRACE_PERIOD_MS = 450
 
 export const useCompleteGazeDetection = (courseId: string) => {
   const { user } = useAuth()
@@ -274,7 +278,8 @@ export const useCompleteGazeDetection = (courseId: string) => {
   }, [])
 
   // Save gaze event to database
-  const saveGazeEvent = useCallback(async (eventType: string, confidence: number, duration: number) => {
+
+  const saveGazeEvent = useCallback(async (eventType: GazeEventType, confidence: number, duration: number) => {
     if (!user || !courseId) return
 
     try {
@@ -288,11 +293,19 @@ export const useCompleteGazeDetection = (courseId: string) => {
       }
 
       await zoomiesDB.createEvent({
-        type: eventType as any,
+        type: 'event',
+        eventType,
         userId: user._id,
         courseId,
         timestamp: Date.now(),
-        data: eventData
+        data: {
+          ...eventData,
+          metadata: {
+            source: 'gaze',
+            courseId
+          }
+        },
+        confidence
       })
 
       console.log(`Gaze event saved: ${eventType}`)
@@ -471,7 +484,7 @@ export const useCompleteGazeDetection = (courseId: string) => {
   // Start detection
   const startDetection = useCallback(async () => {
     if (!user || !courseId) {
-      console.log('Missing user or courseId, returning early')
+      console.log('Missing user or courseId returning early')
       return
     }
 
@@ -570,3 +583,10 @@ export const useCompleteGazeDetection = (courseId: string) => {
     toggleDetection
   }
 }
+
+
+
+
+
+
+

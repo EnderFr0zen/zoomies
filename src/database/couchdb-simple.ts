@@ -117,6 +117,23 @@ class SimpleCouchDBClient {
     }
   }
 
+  async getUsersByIds(userIds: string[]): Promise<UserDocument[]> {
+    if (!userIds || userIds.length === 0) {
+      return []
+    }
+
+    try {
+      const selector = {
+        type: 'user',
+        _id: { '$in': userIds }
+      }
+      return await this.findDocuments('users', selector, userIds.length)
+    } catch (error) {
+      console.error('Error getting users by IDs:', error)
+      return []
+    }
+  }
+
   async updateUser(userId: string, updates: Partial<UserDocument>): Promise<UserDocument> {
     const existing = await this.getUserById(userId)
     if (!existing) {
@@ -467,6 +484,37 @@ class SimpleCouchDBClient {
   // Get session (alias for getSessionById)
   async getSession(sessionId: string): Promise<any> {
     return this.getSessionById(sessionId)
+  }
+
+  async getEventsByUsers(userIds: string[], options?: { limit?: number; since?: number; eventTypes?: string[]; courseIds?: string[] }): Promise<any[]> {
+    if (!userIds || userIds.length === 0) {
+      return []
+    }
+
+    try {
+      const selector: any = {
+        type: 'event',
+        userId: { '$in': userIds }
+      }
+
+      if (options?.since) {
+        selector.timestamp = { '$gte': options.since }
+      }
+
+      if (options?.eventTypes && options.eventTypes.length > 0) {
+        selector.eventType = { '$in': options.eventTypes }
+      }
+
+      if (options?.courseIds && options.courseIds.length > 0) {
+        selector.courseId = { '$in': options.courseIds }
+      }
+
+      const limit = options?.limit ?? 500
+      return await this.findDocuments('events', selector, limit)
+    } catch (error) {
+      console.error('Error getting events by users:', error)
+      return []
+    }
   }
 
   // Get metrics by session

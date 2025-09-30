@@ -4,6 +4,7 @@ import { useCourses } from '../hooks/useCourses'
 import FileUpload from './FileUpload'
 import InlineFileViewer from './InlineFileViewer'
 import GazeCamera from './GazeCamera'
+import { useCourseAttentionTracking } from '../hooks/useCourseAttentionTracking'
 import './CourseDetail.css'
 
 interface CourseDetailProps {
@@ -24,6 +25,7 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
   } | null>(null)
 
   const course = getCourseById(courseId)
+  useCourseAttentionTracking(!isTeacher && course ? courseId : null, { courseTitle: course?.title })
 
   // Initialize instructions when course loads
   useEffect(() => {
@@ -237,3 +239,5 @@ const CourseDetail: React.FC<CourseDetailProps> = ({ courseId, onBack }) => {
 }
 
 export default CourseDetail
+
+
