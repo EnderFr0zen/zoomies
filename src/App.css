@@ -19,21 +19,94 @@ body {
   display: flex;
   flex: 1;
   min-height: calc(100vh - 60px);
-  margin-top: 60px; /* 為固定的標題欄留出空間 */
+  margin-top: 60px; /* Space for fixed header */
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 250px;
+  padding: 0;
+  background: #f8f9fa;
+  min-height: calc(100vh - 60px);
+  transition: margin-left 0.3s ease;
+}
+
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.loading-screen .loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-screen p {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.settings-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  font-size: 1.5rem;
+  color: #666;
+  background: white;
+  margin: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive design for different screen sizes */
+@media (max-width: 1024px) {
+  .main-content {
+    margin-left: 250px;
+  }
 }
 
 @media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 0;
+  }
+  
   .main-layout {
     flex-direction: column;
   }
-  
-  .sidebar {
-    position: relative;
-    width: 100%;
-    min-height: auto;
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    margin-left: 0;
+    padding: 0;
   }
   
-  .dashboard {
-    margin-left: 0;
+  .loading-screen {
+    padding: 20px;
+  }
+  
+  .loading-screen h1 {
+    font-size: 1.5rem;
+  }
+  
+  .loading-screen p {
+    font-size: 1rem;
   }
 }

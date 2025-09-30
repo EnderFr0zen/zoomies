@@ -1,0 +1,155 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.login-header h1 {
+  color: #333;
+  margin: 0 0 8px 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.login-header p {
+  color: #666;
+  margin: 0 0 32px 0;
+  font-size: 1.1rem;
+}
+
+.login-form {
+  text-align: left;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s ease;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-group input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.login-button {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-top: 8px;
+}
+
+.login-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.error-message {
+  color: #e74c3c;
+  background: #fdf2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.login-demo {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.login-demo h3 {
+  color: #333;
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+}
+
+.demo-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.demo-account {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: left;
+}
+
+.demo-account strong {
+  color: #333;
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.demo-account p {
+  margin: 4px 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 24px;
+    margin: 0 16px;
+  }
+  
+  .login-header h1 {
+    font-size: 2rem;
+  }
+  
+  .demo-accounts {
+    flex-direction: column;
+  }
+}

@@ -1,7 +1,7 @@
-// Zoomies 數據庫類型定義
+// Zoomies Database Type Definitions
 export const SCHEMA_VERSION = 1
 
-// 基礎文檔接口
+// Base Document Interface
 export interface BaseDocument {
   _id: string
   _rev?: string
@@ -10,14 +10,82 @@ export interface BaseDocument {
   updatedAt: string // ISO8601
 }
 
-// 會話文檔
+// User Role Type
+export type UserRole = 'teacher' | 'student'
+
+// User Document
+export interface UserDocument extends BaseDocument {
+  type: 'user'
+  username: string
+  email: string
+  role: UserRole
+  displayName: string
+  isActive: boolean
+  teacherId?: string // Teacher ID for students
+  enrolledCourses: string[] // List of course IDs
+  preferences: {
+    theme: 'light' | 'dark'
+    language: string
+    notifications: boolean
+  }
+}
+
+// Course Document
+export interface CourseDocument extends BaseDocument {
+  type: 'course'
+  title: string
+  description: string
+  teacherId: string
+  studentIds: string[]
+  isActive: boolean
+  content: CourseContent
+  metadata: {
+    subject: string
+    grade: string
+    semester: string
+  }
+}
+
+// Course Content
+export interface CourseContent {
+  instructions: string // Course instructions in Markdown format
+  videos: VideoItem[]
+  readings: ReadingItem[]
+  lastModified: string
+  modifiedBy: string
+}
+
+// Video Item
+export interface VideoItem {
+  id: string
+  title: string
+  type: 'youtube' | 'upload'
+  url: string
+  duration?: number
+  thumbnail?: string
+  order: number
+}
+
+// Reading Material Item
+export interface ReadingItem {
+  id: string
+  title: string
+  type: 'pdf' | 'ppt' | 'pptx'
+  url: string
+  size?: number
+  order: number
+}
+
+// Session Document
 export interface SessionDocument extends BaseDocument {
   type: 'session'
   sessionId: string
+  userId: string
+  courseId?: string
   subject: string
   startedAt: string // ISO8601
   endedAt?: string // ISO8601
-  duration: number // 秒
+  duration: number // seconds
   isActive: boolean
   metadata: {
     userAgent: string
@@ -26,91 +94,94 @@ export interface SessionDocument extends BaseDocument {
   }
 }
 
-// 事件文檔
+// Event Document
 export interface EventDocument extends BaseDocument {
   type: 'event'
   sessionId: string
+  userId: string
   eventType: EventType
   timestamp: string // ISO8601
   data: EventData
   confidence?: number // 0-1
 }
 
-// 事件類型
+// Event Type
 export type EventType = 
-  // 注意力事件
+  // Attention events
   | 'attention:present'
   | 'attention:lost'
-  // 提醒事件
+  // Nudge events
   | 'nudge1:shown'
   | 'nudge2:shown'
   | 'nudge:sound_played'
-  // 恢復事件
+  // Recovery events
   | 'focus:regained'
-  // 會話生命週期
+  // Session lifecycle
   | 'session:start'
   | 'session:end'
-  // 可選 UX 事件
+  // Optional UX events
   | 'koala:dragged'
   | 'koala:clicked'
   | 'settings:changed'
 
-// 事件數據
+// Event Data
 export interface EventData {
-  // 注意力相關
+  // Attention related
   reason?: 'no_face' | 'yaw' | 'pitch' | 'tab_hidden' | 'input_idle' | 'window_blur'
   attentionLevel?: number // 0-1
   
-  // 提醒相關
+  // Nudge related
   nudgeType?: 'nudge1' | 'nudge2'
   soundPlayed?: boolean
   
-  // 會話相關
+  // Session related
   subject?: string
   duration?: number
   
-  // 設置相關
+  // Settings related
   settingName?: string
   settingValue?: any
   
-  // 通用
+  // General
   message?: string
   metadata?: Record<string, any>
 }
 
-// 指標文檔
+// Metrics Document
 export interface MetricsDocument extends BaseDocument {
   type: 'metrics'
   sessionId: string
+  userId: string
+  courseId?: string
   sessionStartTime: string // ISO8601
   sessionEndTime?: string // ISO8601
   
-  // 核心指標
+  // Core metrics
   focusPercentage: number // 0-100
   totalNudges: number
   nudge1Count: number
   nudge2Count: number
-  averageResponseTime: number // 秒
+  averageResponseTime: number // seconds
   
-  // 時間分佈
-  totalSessionTime: number // 秒
-  focusedTime: number // 秒
-  distractedTime: number // 秒
+  // Time distribution
+  totalSessionTime: number // seconds
+  focusedTime: number // seconds
+  distractedTime: number // seconds
   
-  // 詳細統計
+  // Detailed statistics
   attentionEvents: {
     present: number
     lost: number
     regained: number
   }
   
-  // 歷史數據（可選）
+  // Historical data (optional)
   focusHistory?: Array<{
     timestamp: string
     focusLevel: number
   }>
   
-  // 聚合數據
+  // Aggregated data
   hourlyBreakdown?: Array<{
     hour: number
     focusPercentage: number
@@ -118,13 +189,13 @@ export interface MetricsDocument extends BaseDocument {
   }>
 }
 
-// 設置文檔
+// Settings Document
 export interface SettingsDocument extends BaseDocument {
   type: 'settings'
-  userId?: string // 可選用戶 ID
+  userId?: string // Optional user ID
   isDefault: boolean
   
-  // 考拉設置
+  // Koala settings
   koala: {
     position: {
       x: number
@@ -134,7 +205,7 @@ export interface SettingsDocument extends BaseDocument {
     reducedMotion: boolean
   }
   
-  // 隱私設置
+  // Privacy settings
   privacy: {
     consentGiven: boolean
     consentDate?: string
@@ -142,15 +213,15 @@ export interface SettingsDocument extends BaseDocument {
     allowAnalytics: boolean
   }
   
-  // 學習設置
+  // Learning settings
   learning: {
     defaultSubject: string
-    sessionDuration: number // 分鐘
+    sessionDuration: number // minutes
     nudgeSensitivity: 'low' | 'medium' | 'high'
     breakReminders: boolean
   }
   
-  // 通知設置
+  // Notification settings
   notifications: {
     soundEnabled: boolean
     visualEnabled: boolean
@@ -158,15 +229,17 @@ export interface SettingsDocument extends BaseDocument {
   }
 }
 
-// 數據庫名稱
+// Database Names
 export const DATABASE_NAMES = {
+  USERS: 'zoomies-users',
+  COURSES: 'zoomies-courses',
   SESSIONS: 'zoomies-sessions',
   EVENTS: 'zoomies-events',
   METRICS: 'zoomies-metrics',
   SETTINGS: 'zoomies-settings'
 } as const
 
-// 查詢選項
+// Query Options
 export interface QueryOptions {
   limit?: number
   skip?: number
@@ -176,7 +249,7 @@ export interface QueryOptions {
   endkey?: any
 }
 
-// 事件緩衝
+// Event Buffer
 export interface EventBuffer {
   events: EventDocument[]
   lastFlush: number
@@ -184,7 +257,7 @@ export interface EventBuffer {
   flushInterval: number
 }
 
-// 存儲配額
+// Storage Quota
 export interface StorageQuota {
   maxEvents: number
   maxSessions: number

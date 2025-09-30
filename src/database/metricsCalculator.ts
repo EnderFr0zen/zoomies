@@ -152,6 +152,7 @@ export class MetricsCalculator {
     const metrics: Omit<MetricsDocument, keyof import('./types').BaseDocument> = {
       type: 'metrics',
       sessionId: session._id,
+      userId: session.userId || 'default-user',
       sessionStartTime: session.startedAt,
       sessionEndTime: session.endedAt,
       focusPercentage: Math.round(focusPercentage * 100) / 100,

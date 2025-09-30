@@ -61,6 +61,7 @@ export class EventLogger {
       schemaVersion: 1,
       type: 'event',
       sessionId: this.currentSessionId,
+      userId: 'default-user', // 臨時用戶ID，實際應用中應該從認證系統獲取
       eventType,
       timestamp: new Date().toISOString(),
       data,

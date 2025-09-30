@@ -1,4 +1,4 @@
-// Zoomies 數據庫系統主入口
+// Zoomies Database System Main Entry Point
 import { zoomiesDB } from './database'
 import { eventLogger } from './eventLogger'
 import { metricsCalculator } from './metricsCalculator'
@@ -7,13 +7,13 @@ import { privacyManager } from './privacyManager'
 import { migrationManager } from './migrationManager'
 import { storageManager } from './storageManager'
 
-// 導出所有模組
+// Export all modules
 export { zoomiesDB, eventLogger, metricsCalculator, multiTabManager, privacyManager, migrationManager, storageManager }
 
-// 導出類型
+// Export types
 export * from './types'
 
-// 數據庫系統初始化器
+// Database system initializer
 export class DatabaseSystem {
   private isInitialized = false
 
@@ -73,6 +73,7 @@ export class DatabaseSystem {
     await zoomiesDB.createSession({
       type: 'session',
       sessionId,
+      userId: 'default-user', // 臨時用戶ID，實際應用中應該從認證系統獲取
       subject,
       startedAt: new Date().toISOString(),
       duration: duration || 0,

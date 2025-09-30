@@ -9,10 +9,10 @@ import type {
 } from './types'
 import { DATABASE_NAMES, SCHEMA_VERSION } from './types'
 
-// 註冊 PouchDB 插件
+// Register PouchDB plugins
 PouchDB.plugin(PouchDBFind)
 
-// 數據庫實例
+// Database instances
 class ZoomiesDatabase {
   private readonly sessionsDB: PouchDB.Database<SessionDocument>
   private readonly eventsDB: PouchDB.Database<EventDocument>
@@ -23,28 +23,28 @@ class ZoomiesDatabase {
   private indexesCreated = false
 
   constructor() {
-    // 初始化數據庫實例
+    // Initialize database instances
     this.sessionsDB = new PouchDB<SessionDocument>(DATABASE_NAMES.SESSIONS)
     this.eventsDB = new PouchDB<EventDocument>(DATABASE_NAMES.EVENTS)
     this.metricsDB = new PouchDB<MetricsDocument>(DATABASE_NAMES.METRICS)
     this.settingsDB = new PouchDB<SettingsDocument>(DATABASE_NAMES.SETTINGS)
   }
 
-  // 初始化數據庫
+  // Initialize database
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
     try {
-      // 請求持久存儲
+      // Request persistent storage
       if ('storage' in navigator && 'persist' in navigator.storage) {
         const isPersistent = await navigator.storage.persist()
         console.log('Persistent storage granted:', isPersistent)
       }
 
-      // 創建索引
+      // Create indexes
       await this.createIndexes()
       
-      // 初始化默認設置
+      // Initialize default settings
       await this.initializeDefaultSettings()
       
       this.isInitialized = true
@@ -55,12 +55,12 @@ class ZoomiesDatabase {
     }
   }
 
-  // 創建數據庫索引
+  // Create database indexes
   private async createIndexes(): Promise<void> {
     if (this.indexesCreated) return
 
     try {
-      // Events 數據庫索引
+      // Events database indexes
       await this.eventsDB.createIndex({
         index: {
           fields: ['sessionId', 'timestamp']
