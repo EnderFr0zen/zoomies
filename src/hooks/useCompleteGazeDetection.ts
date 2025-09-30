@@ -19,7 +19,7 @@ const EYES_OPEN_THRESHOLD = 0.20
 const GAZE_LEFT_THRESHOLD = 0.4
 const GAZE_RIGHT_THRESHOLD = 0.6
 const LOOKING_AT_SCREEN_CONFIDENCE = 0.90
-const LOOKING_AWAY_GRACE_PERIOD_MS = 450
+const LOOKING_AWAY_GRACE_PERIOD_MS = 900
 
 export const useCompleteGazeDetection = (courseId: string) => {
   const { user } = useAuth()
