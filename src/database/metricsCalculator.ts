@@ -1,12 +1,12 @@
 import type { EventDocument, MetricsDocument, SessionDocument } from './types'
 import { zoomiesDB } from './couchdb-simple'
 
-// 指標計算器類
+// Metrics Calculator Class
 export class MetricsCalculator {
   private updateInterval: number | null = null
-  private readonly UPDATE_FREQUENCY = 30000 // 30秒更新一次
+  private readonly UPDATE_FREQUENCY = 30000 // Update every 30 seconds
 
-  // 計算會話指標
+  // Calculate session metrics
   async calculateSessionMetrics(sessionId: string): Promise<MetricsDocument> {
     const events = await zoomiesDB.getEventsBySession(sessionId)
     const session = await zoomiesDB.getSession(sessionId)
@@ -19,13 +19,13 @@ export class MetricsCalculator {
     return metrics
   }
 
-  // 處理事件並計算指標
+  // Process events and calculate metrics
   private processEvents(events: EventDocument[], session: SessionDocument): MetricsDocument {
     const sessionStart = new Date(session.startedAt).getTime()
     const sessionEnd = session.endedAt ? new Date(session.endedAt).getTime() : Date.now()
-    const totalSessionTime = Math.floor((sessionEnd - sessionStart) / 1000) // 秒
+    const totalSessionTime = Math.floor((sessionEnd - sessionStart) / 1000) // seconds
 
-    // 初始化指標
+    // Initialize metrics
     let focusedTime = 0
     let distractedTime = 0
     let totalNudges = 0
@@ -42,23 +42,23 @@ export class MetricsCalculator {
     const focusHistory: Array<{ timestamp: string; focusLevel: number }> = []
     const hourlyBreakdown: Array<{ hour: number; focusPercentage: number; nudgeCount: number }> = []
 
-    // 追蹤狀態
+    // Track state
     let isFocused = true
     let lastAttentionTime = sessionStart
     let lastNudgeTime = 0
     let currentHour = new Date(sessionStart).getHours()
 
-    // 按時間排序事件
+    // Sort events by time
     const sortedEvents = [...events].sort((a, b) => 
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     )
 
-    // 處理每個事件
+    // Process each event
     for (const event of sortedEvents) {
       const eventTime = new Date(event.timestamp).getTime()
       const eventHour = new Date(event.timestamp).getHours()
 
-      // 更新小時統計
+      // Update hourly statistics
       if (eventHour !== currentHour) {
         const hourFocusPercentage = lastAttentionTime > 0 ? 
           Math.max(0, Math.min(100, (focusedTime / (eventTime - sessionStart)) * 100)) : 0
@@ -71,7 +71,7 @@ export class MetricsCalculator {
         currentHour = eventHour
       }
 
-      // 計算時間差
+      // Calculate time difference
       const timeDiff = Math.floor((eventTime - lastAttentionTime) / 1000)
       
       if (isFocused) {
@@ -80,12 +80,12 @@ export class MetricsCalculator {
         distractedTime += timeDiff
       }
 
-      // 處理不同類型的事件
+      // Handle different types of events
       switch (event.eventType) {
         case 'attention:present':
           attentionEvents.present++
           if (!isFocused) {
-            // 從分心恢復
+            // Recover from distraction
             const responseTime = lastNudgeTime > 0 ? 
               Math.floor((eventTime - lastNudgeTime) / 1000) : 0
             if (responseTime > 0) {
@@ -131,14 +131,14 @@ export class MetricsCalculator {
       lastAttentionTime = eventTime
     }
 
-    // 計算最終指標
+    // Calculate final metrics
     const focusPercentage = totalSessionTime > 0 ? 
       Math.max(0, Math.min(100, (focusedTime / totalSessionTime) * 100)) : 0
 
     const averageResponseTime = responseTimes.length > 0 ?
       responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length : 0
 
-    // 添加最後一個小時的統計
+    // Add last hour statistics
     const finalHourFocusPercentage = lastAttentionTime > 0 ? 
       Math.max(0, Math.min(100, (focusedTime / (sessionEnd - sessionStart)) * 100)) : 0
     
@@ -148,7 +148,7 @@ export class MetricsCalculator {
       nudgeCount: totalNudges
     })
 
-    // 創建指標文檔
+    // Create metrics document
     const metrics: Omit<MetricsDocument, keyof import('./types').BaseDocument> = {
       type: 'metrics',
       sessionId: session._id,
@@ -164,14 +164,14 @@ export class MetricsCalculator {
       focusedTime,
       distractedTime,
       attentionEvents,
-      focusHistory: focusHistory.slice(-100), // 保留最近100個記錄
+      focusHistory: focusHistory.slice(-100), // Keep last 100 records
       hourlyBreakdown
     }
 
     return metrics as MetricsDocument
   }
 
-  // 實時更新指標
+  // Real-time metrics update
   startRealTimeUpdates(sessionId: string): void {
     if (this.updateInterval) {
       clearInterval(this.updateInterval)
@@ -186,7 +186,7 @@ export class MetricsCalculator {
     }, this.UPDATE_FREQUENCY)
   }
 
-  // 停止實時更新
+  // Stop real-time update
   stopRealTimeUpdates(): void {
     if (this.updateInterval) {
       clearInterval(this.updateInterval)
@@ -194,12 +194,12 @@ export class MetricsCalculator {
     }
   }
 
-  // 更新會話指標
+  // Update session metrics
   async updateSessionMetrics(sessionId: string): Promise<void> {
     try {
       const metrics = await this.calculateSessionMetrics(sessionId)
       
-      // 檢查是否已存在指標文檔
+      // Check if metrics document already exists
       const existingMetrics = await zoomiesDB.getMetricsBySession(sessionId)
       
       if (existingMetrics) {
@@ -214,7 +214,7 @@ export class MetricsCalculator {
     }
   }
 
-  // 計算總體統計
+  // Calculate overall statistics
   async calculateOverallStats(timeRange?: { start: string; end: string }): Promise<{
     totalSessions: number
     averageFocusPercentage: number
@@ -223,7 +223,7 @@ export class MetricsCalculator {
     mostDistractedSubject: string
     improvementTrend: number
   }> {
-    const sessions = await zoomiesDB.getRecentSessions(1000) // 獲取最近1000個會話
+    const sessions = await zoomiesDB.getRecentSessions(1000) // Get last 1000 sessions
     
     let filteredSessions = sessions
     if (timeRange) {
@@ -244,14 +244,14 @@ export class MetricsCalculator {
       }
     }
 
-    // 計算基本統計
+    // Calculate basic statistics
     const totalSessions = filteredSessions.length
     let totalFocusPercentage = 0
     let totalNudges = 0
     let totalDuration = 0
     const subjectStats: Record<string, { sessions: number; nudges: number }> = {}
 
-    // 獲取每個會話的指標
+    // Get metrics for each session
     for (const session of filteredSessions) {
       const metricsArray = await zoomiesDB.getMetricsBySession(session._id)
       if (metricsArray && metricsArray.length > 0) {
@@ -260,7 +260,7 @@ export class MetricsCalculator {
         totalNudges += metrics.totalNudges
         totalDuration += metrics.totalSessionTime
 
-        // 按科目統計
+        // Statistics by subject
         if (!subjectStats[session.subject]) {
           subjectStats[session.subject] = { sessions: 0, nudges: 0 }
         }
@@ -273,13 +273,13 @@ export class MetricsCalculator {
       Math.round((totalFocusPercentage / totalSessions) * 100) / 100 : 0
 
     const averageSessionDuration = totalSessions > 0 ? 
-      Math.round((totalDuration / totalSessions) / 60) : 0 // 分鐘
+      Math.round((totalDuration / totalSessions) / 60) : 0 // minutes
 
-    // 找出最容易分心的科目
+    // Find subjects with most distractions
     const mostDistractedSubject = Object.entries(subjectStats)
       .sort(([,a], [,b]) => (b.nudges / b.sessions) - (a.nudges / a.sessions))[0]?.[0] || ''
 
-    // 計算改善趨勢（比較前半段和後半段）
+    // Calculate improvement trend (compare first and second half)
     const halfPoint = Math.floor(filteredSessions.length / 2)
     const firstHalf = filteredSessions.slice(0, halfPoint)
     const secondHalf = filteredSessions.slice(halfPoint)
@@ -314,7 +314,7 @@ export class MetricsCalculator {
     }
   }
 
-  // 生成學習建議
+  // Generate learning recommendations
   generateLearningRecommendations(metrics: MetricsDocument): string[] {
     const recommendations: string[] = []
 
@@ -344,6 +344,6 @@ export class MetricsCalculator {
   }
 }
 
-// 導出單例實例
+// Export singleton instance
 export const metricsCalculator = new MetricsCalculator()
 export default metricsCalculator
