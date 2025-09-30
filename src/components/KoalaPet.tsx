@@ -6,6 +6,7 @@ import { useAudio } from '../hooks/useAudio'
 import { useAttentionDetection } from '../hooks/useAttentionDetection'
 import { useScreenActivity } from '../hooks/useScreenActivity'
 import { useSessionContext } from '../hooks/useSessionContext'
+// import { databaseSystem } from '../database'
 
 // Import animation data
 import koalaNormal from '../assets/animations/koala-normal.json'
@@ -62,6 +63,19 @@ const KoalaPet: React.FC = () => {
     // Convert AttentionEvent to KoalaEvent
     if (event.type === 'inattentive_5s' || event.type === 'inattentive_10s' || event.type === 'focused_2s') {
       handleEvent(event as any)
+      
+      // Log attention events to database
+      // if (event.type === 'inattentive_5s' || event.type === 'inattentive_10s') {
+      //   databaseSystem.logAttentionEvent('lost', {
+      //     reason: 'input_idle',
+      //     confidence: event.confidence
+      //   })
+      // } else if (event.type === 'focused_2s') {
+      //   databaseSystem.logAttentionEvent('present', {
+      //     attentionLevel: 1,
+      //     confidence: event.confidence
+      //   })
+      // }
     }
   })
 
@@ -102,25 +116,34 @@ const KoalaPet: React.FC = () => {
     
     setLastStateChange(now)
     
-    if (state.currentState === 'NUDGE_1') {
-      if (!sessionContext.muteState) {
-        playNudge1()
-      }
-      setBubbleText(`Hey! Let's get back to ${sessionContext.subject}! 🎯`)
-      setShowBubble(true)
-      setTimeout(() => setShowBubble(false), 2000)
-    } else if (state.currentState === 'NUDGE_2') {
-      if (!sessionContext.muteState) {
-        playNudge2()
-      }
-      setBubbleText('I need your attention! Look at me! 👀')
-      setShowBubble(true)
-      setTimeout(() => setShowBubble(false), 3000)
-    } else if (state.currentState === 'HAPPY') {
-      setBubbleText(`Awesome! You're doing great in ${sessionContext.subject}! 🌟`)
-      setShowBubble(true)
-      setTimeout(() => setShowBubble(false), 2000)
-    }
+            if (state.currentState === 'NUDGE_1') {
+              if (!sessionContext.muteState) {
+                playNudge1()
+              }
+              setBubbleText(`Hey! Let's get back to ${sessionContext.subject}! 🎯`)
+              setShowBubble(true)
+              setTimeout(() => setShowBubble(false), 2000)
+              
+              // Log nudge event to database
+              // databaseSystem.logNudgeEvent('nudge1', !sessionContext.muteState)
+            } else if (state.currentState === 'NUDGE_2') {
+              if (!sessionContext.muteState) {
+                playNudge2()
+              }
+              setBubbleText('I need your attention! Look at me! 👀')
+              setShowBubble(true)
+              setTimeout(() => setShowBubble(false), 3000)
+              
+              // Log nudge event to database
+              // databaseSystem.logNudgeEvent('nudge2', !sessionContext.muteState)
+            } else if (state.currentState === 'HAPPY') {
+              setBubbleText(`Awesome! You're doing great in ${sessionContext.subject}! 🌟`)
+              setShowBubble(true)
+              setTimeout(() => setShowBubble(false), 2000)
+              
+              // Log focus regained event to database
+              // databaseSystem.logFocusRegained()
+            }
   }, [state.currentState, sessionContext.muteState, sessionContext.subject, playNudge1, playNudge2, lastStateChange])
 
   // Update animation index when state changes

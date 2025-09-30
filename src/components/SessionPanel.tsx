@@ -1,9 +1,12 @@
 import React from 'react'
 import { useSessionContext } from '../hooks/useSessionContext'
+// import { useSessionManager } from '../hooks/useSessionManager'
 import './SessionPanel.css'
 
 const SessionPanel: React.FC = () => {
   const { sessionContext, actions, utils } = useSessionContext()
+  // const { state: sessionState, actions: sessionActions } = useSessionManager()
+  // const [sessionStats, setSessionStats] = useState<any>(null)
 
   const subjects = [
     'Mathematics',
@@ -15,6 +18,30 @@ const SessionPanel: React.FC = () => {
     'Physical Education',
     'Music'
   ]
+
+  // 更新會話統計
+  // useEffect(() => {
+  //   const updateStats = async () => {
+  //     if (sessionState.isSessionActive) {
+  //       const stats = await sessionActions.getSessionStats()
+  //       setSessionStats(stats)
+  //     }
+  //   }
+
+  //   updateStats()
+  //   const interval = setInterval(updateStats, 5000) // 每5秒更新一次
+  //   return () => clearInterval(interval)
+  // }, [sessionState.isSessionActive, sessionActions])
+
+  // 處理會話開始/結束
+  // const handleSessionToggle = async () => {
+  //   if (sessionState.isSessionActive) {
+  //     await sessionActions.endSession()
+  //     setSessionStats(null)
+  //   } else {
+  //     await sessionActions.startSession(sessionContext.subject, sessionContext.taskTimer.elapsedTime)
+  //   }
+  // }
 
   return (
     <div className="session-panel">
@@ -79,12 +106,12 @@ const SessionPanel: React.FC = () => {
           </button>
         </div>
 
-        {/* Session Info */}
-        <div className="session-info">
-          <div className="session-duration">
-            Session Duration: {utils.formatElapsedTime(Math.floor((Date.now() - sessionContext.startTime) / 1000))}
-          </div>
-        </div>
+                {/* Session Info */}
+                <div className="session-info">
+                  <div className="session-duration">
+                    Session Duration: {utils.formatElapsedTime(Math.floor((Date.now() - sessionContext.startTime) / 1000))}
+                  </div>
+                </div>
       </div>
     </div>
   )

@@ -2,7 +2,7 @@ import './App.css'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
-import KoalaPet from './components/KoalaPet'
+import SimpleKoala from './components/SimpleKoala'
 
 function App() {
   return (
@@ -12,7 +12,7 @@ function App() {
         <Sidebar />
         <Dashboard />
       </div>
-      <KoalaPet />
+      <SimpleKoala />
     </div>
   )
 }

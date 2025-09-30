@@ -187,6 +187,70 @@
   font-family: monospace;
 }
 
+.session-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.session-control {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.session-toggle-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.session-toggle-btn.active {
+  background-color: #f44336;
+  color: white;
+}
+
+.session-toggle-btn.active:hover {
+  background-color: #d32f2f;
+}
+
+.session-toggle-btn.inactive {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.session-toggle-btn.inactive:hover {
+  background-color: #45a049;
+}
+
 @media (max-width: 768px) {
   .session-panel {
     padding: 15px;
