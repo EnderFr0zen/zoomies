@@ -77,7 +77,7 @@ class SimpleCouchDBClient {
     const userDoc: UserDocument = {
       ...user,
       _id: user._id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      schemaVersion: '1.0.0',
+      schemaVersion: 1,
       createdAt: now,
       updatedAt: now,
       type: 'user'
@@ -139,7 +139,7 @@ class SimpleCouchDBClient {
     const courseDoc: CourseDocument = {
       ...course,
       _id: `course_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      schemaVersion: '1.0.0',
+      schemaVersion: 1,
       createdAt: now,
       updatedAt: now,
       type: 'course'
@@ -330,7 +330,7 @@ class SimpleCouchDBClient {
     const sessionDoc = {
       ...session,
       _id: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      schemaVersion: '1.0.0',
+      schemaVersion: 1,
       createdAt: now,
       updatedAt: now
     }
@@ -371,7 +371,7 @@ class SimpleCouchDBClient {
     const eventDoc = {
       ...event,
       _id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      schemaVersion: '1.0.0',
+      schemaVersion: 1,
       createdAt: now,
       updatedAt: now
     }
@@ -515,6 +515,20 @@ class SimpleCouchDBClient {
       console.error('Error getting recent events:', error)
       return []
     }
+  }
+
+  // Create metrics
+  async createMetrics(metrics: Omit<any, '_id' | '_rev' | 'schemaVersion' | 'createdAt' | 'updatedAt' | 'type'> & { _id?: string }): Promise<any> {
+    const now = new Date().toISOString()
+    const metricsDoc = {
+      ...metrics,
+      _id: metrics._id || `metrics_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      schemaVersion: 1,
+      createdAt: now,
+      updatedAt: now,
+      type: 'metrics'
+    }
+    return await this.putDocument('metrics', metricsDoc)
   }
 
   // Export data

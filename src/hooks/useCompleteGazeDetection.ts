@@ -1,8 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from './useAuth'
 import { zoomiesDB } from '../database/couchdb-simple'
-import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
-import type { FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision'
+// Dynamic imports for MediaPipe to avoid build issues
+// import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
+// import type { FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision'
+
+// Type definitions for MediaPipe
+interface NormalizedLandmark {
+  x: number
+  y: number
+  z?: number
+}
+
+interface FaceLandmarkerResult {
+  faceLandmarks?: NormalizedLandmark[][]
+  faceBlendShapes?: any[]
+  facialTransformationMatrixes?: any[]
+}
+
+interface FaceLandmarker {
+  detectForVideo: (image: any, timestamp: number) => FaceLandmarkerResult
+  close: () => void
+}
 
 // EXACT constants from Python version - NO CHANGES
 const LEFT_EYE_INDICES = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
@@ -307,6 +326,10 @@ export const useCompleteGazeDetection = (courseId: string) => {
     const initialize = async () => {
       try {
         console.log('Initializing MediaPipe Face Landmarker...')
+        
+        // Dynamic import of MediaPipe
+        const { FaceLandmarker, FilesetResolver } = await import('@mediapipe/tasks-vision')
+        
         const filesetResolver = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
         )
@@ -343,11 +366,15 @@ export const useCompleteGazeDetection = (courseId: string) => {
         }
 
         if (cancelled) {
-          landmarker.close()
+          if (landmarker) {
+            landmarker.close()
+          }
           return
         }
 
-        faceLandmarkerRef.current = landmarker
+        if (landmarker) {
+          faceLandmarkerRef.current = landmarker
+        }
         setIsFaceLandmarkerReady(true)
         console.log('Face Landmarker initialized successfully')
       } catch (error) {

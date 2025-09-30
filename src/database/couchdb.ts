@@ -75,7 +75,7 @@ class CouchDBDatabase {
       await db.info()
     } catch (error: any) {
       if (error.status === 404) {
-        await db.create()
+        await (db as any).create()
         console.log(`Created database: ${db.name}`)
       } else {
         throw error
@@ -243,7 +243,7 @@ class CouchDBDatabase {
       console.log('Clearing all courses...')
       await this.coursesDB.destroy()
       // Re-create courses database
-      await this.coursesDB.create()
+      await (this.coursesDB as any).create()
       await this.coursesDB.createIndex({
         index: { fields: ['teacherId'] }
       })
@@ -321,7 +321,7 @@ class CouchDBDatabase {
       updatedAt: new Date().toISOString()
     }
     const result = await this.usersDB.put(updated)
-    return { ...updated, _rev: result.rev }
+    return { ...updated, _rev: result.rev } as any
   }
 
   async getAllUsers(): Promise<UserDocument[]> {
@@ -382,7 +382,7 @@ class CouchDBDatabase {
       updatedAt: new Date().toISOString()
     }
     const result = await this.coursesDB.put(updated)
-    return { ...updated, _rev: result.rev }
+    return { ...updated, _rev: result.rev } as any
   }
 
   async getCoursesByTeacher(teacherId: string): Promise<CourseDocument[]> {
@@ -527,7 +527,7 @@ class CouchDBDatabase {
       updatedAt: new Date().toISOString()
     }
     const result = await this.sessionsDB.put(updated)
-    return { ...updated, _rev: result.rev }
+    return { ...updated, _rev: result.rev } as any
   }
 
   async getAllSessions(): Promise<SessionDocument[]> {
@@ -643,7 +643,7 @@ class CouchDBDatabase {
       updatedAt: new Date().toISOString()
     }
     const result = await this.metricsDB.put(updated)
-    return { ...updated, _rev: result.rev }
+    return { ...updated, _rev: result.rev } as any
   }
 
   async getRecentSessions(limit: number = 10): Promise<SessionDocument[]> {

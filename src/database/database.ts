@@ -247,7 +247,7 @@ class ZoomiesDatabase {
       console.log('Clearing all courses...')
       await this.coursesDB.destroy()
       // Re-initialize courses database
-      await this.coursesDB.initialize()
+      await this.initialize()
       console.log('All courses cleared successfully')
     } catch (error) {
       console.error('Failed to clear courses:', error)

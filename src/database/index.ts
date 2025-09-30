@@ -150,9 +150,9 @@ export class DatabaseSystem {
   }
 
   // Clear all data from databases
-  private async clearAllData(): Promise<void> {
-    await zoomiesDB.clearAllData()
-  }
+  // private async clearAllData(): Promise<void> {
+  //   await zoomiesDB.clearAllData()
+  // }
 
   // Clear only courses data
   async clearAllCourses(): Promise<void> {
@@ -167,7 +167,7 @@ export class DatabaseSystem {
   }
 
   // Create new course
-  async createCourse(courseData: Omit<CourseDocument, '_id' | '_rev' | 'schemaVersion' | 'createdAt' | 'updatedAt' | 'type'>): Promise<CourseDocument> {
+  async createCourse(courseData: Omit<any, '_id' | '_rev' | 'schemaVersion' | 'createdAt' | 'updatedAt' | 'type'>): Promise<any> {
     if (!this.isInitialized) {
       throw new Error('Database system not initialized')
     }

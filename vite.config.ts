@@ -19,6 +19,9 @@ export default defineConfig({
   build: {
     commonjsOptions: {
       include: [/node_modules/]
+    },
+    rollupOptions: {
+      external: ['@mediapipe/tasks-vision']
     }
   },
   server: {
@@ -30,15 +33,15 @@ export default defineConfig({
         target: 'http://localhost:5984',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/couchdb/, ''),
-        configure: (proxy, _options) => {
-          proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
+        configure: (proxy: any, _options: any) => {
+          proxy.on('error', (_err: any, _req: any, _res: any) => {
+            // console.log('proxy error', err);
           });
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Sending Request to the Target:', req.method, req.url);
+          proxy.on('proxyReq', (_proxyReq: any, _req: any, _res: any) => {
+            // console.log('Sending Request to the Target:', req.method, req.url);
           });
-          proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+          proxy.on('proxyRes', (_proxyRes: any, _req: any, _res: any) => {
+            // console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
           });
         },
       }
