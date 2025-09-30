@@ -23,6 +23,10 @@
   gap: 30px;
 }
 
+.session-panel-container {
+  width: 100%;
+}
+
 .dashboard-row {
   display: flex;
   gap: 20px;

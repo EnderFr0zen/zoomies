@@ -6,6 +6,7 @@ import Homework from './Homework'
 import Classes from './Classes'
 import UpcomingEvents from './UpcomingEvents'
 import Projects from './Projects'
+import SessionPanel from './SessionPanel'
 
 const Dashboard: React.FC = () => {
   return (
@@ -15,6 +16,11 @@ const Dashboard: React.FC = () => {
       </div>
       
       <div className="dashboard-content">
+        {/* Session Panel */}
+        <div className="session-panel-container">
+          <SessionPanel />
+        </div>
+        
         {/* Top Row */}
         <div className="dashboard-row">
           <div className="chart-container">

@@ -5,6 +5,8 @@ import { useKoalaState } from '../hooks/useKoalaState'
 import { useAudio } from '../hooks/useAudio'
 import { useDrag } from '../hooks/useDrag'
 import { useAttentionDetection } from '../hooks/useAttentionDetection'
+import { useScreenActivity } from '../hooks/useScreenActivity'
+import { useSessionContext } from '../hooks/useSessionContext'
 
 // Import animation data
 import koalaNormal from '../assets/animations/koala-normal.json'
@@ -28,6 +30,35 @@ const KoalaPet: React.FC = () => {
 
   const [showBubble, setShowBubble] = useState(false)
   const [bubbleText, setBubbleText] = useState('Hi Andy!')
+
+  // Set up session context
+  const { sessionContext } = useSessionContext()
+
+  // Set up screen activity detection
+  useScreenActivity((event) => {
+    console.log('Screen activity event:', event)
+    
+    // Handle different screen activity events
+    switch (event.type) {
+      case 'page_hidden':
+        setBubbleText('Come back! I miss you! 😢')
+        setShowBubble(true)
+        setTimeout(() => setShowBubble(false), 3000)
+        break
+      case 'input_idle':
+        if (event.data?.idleTime && event.data.idleTime > 60000) { // 1 minute
+          setBubbleText('Are you still there? 🤔')
+          setShowBubble(true)
+          setTimeout(() => setShowBubble(false), 3000)
+        }
+        break
+      case 'window_blur':
+        setBubbleText('Focus on your studies! 📚')
+        setShowBubble(true)
+        setTimeout(() => setShowBubble(false), 2000)
+        break
+    }
+  })
 
   // Set up attention detection
   const { handleComputerVisionEvent } = useAttentionDetection(handleEvent)
@@ -60,52 +91,57 @@ const KoalaPet: React.FC = () => {
   // Handle state changes and play sounds
   useEffect(() => {
     if (state.currentState === 'NUDGE_1') {
-      if (!state.isMuted) {
+      if (!sessionContext.muteState) {
         playNudge1()
       }
-      setBubbleText('Hey! Let\'s get back to learning! 🎯')
+      setBubbleText(`Hey! Let's get back to ${sessionContext.subject}! 🎯`)
       setShowBubble(true)
       setTimeout(() => setShowBubble(false), 2000)
     } else if (state.currentState === 'NUDGE_2') {
-      if (!state.isMuted) {
+      if (!sessionContext.muteState) {
         playNudge2()
       }
       setBubbleText('I need your attention! Look at me! 👀')
       setShowBubble(true)
       setTimeout(() => setShowBubble(false), 3000)
     } else if (state.currentState === 'HAPPY') {
-      setBubbleText('Awesome! You\'re doing great! 🌟')
+      setBubbleText(`Awesome! You're doing great in ${sessionContext.subject}! 🌟`)
       setShowBubble(true)
       setTimeout(() => setShowBubble(false), 2000)
     }
-  }, [state.currentState, state.isMuted, playNudge1, playNudge2])
+  }, [state.currentState, sessionContext.muteState, sessionContext.subject, playNudge1, playNudge2])
 
   const getAnimationData = () => {
     console.log('KoalaPet: Getting animation data, state:', state.currentState)
     
     let selectedAnimation
     switch (state.currentState) {
-      case 'NUDGE_1':
+      case 'NUDGE_1': {
         // Gentle attention-grabbing when distracted - use tired or sad
         const gentleAnimations = [koalaTired, koalaSad]
         selectedAnimation = gentleAnimations[Math.floor(Math.random() * gentleAnimations.length)]
         break
-      case 'NUDGE_2':
+      }
+      case 'NUDGE_2': {
         // Stronger attention-grabbing when very distracted - use angry or crying
         const strongAnimations = [koalaAngry, koalaCrying]
         selectedAnimation = strongAnimations[Math.floor(Math.random() * strongAnimations.length)]
         break
-      case 'HAPPY':
+      }
+      case 'HAPPY': {
         // Celebration when refocused - use happy, laughing, or love
         const happyAnimations = [koalaHappy, koalaLaughing, koalaLove, koalaKissing]
         selectedAnimation = happyAnimations[Math.floor(Math.random() * happyAnimations.length)]
         break
-      default:
+      }
+      default: {
         // Calm idle state when focused - use normal or eats leaves
         const idleAnimations = [koalaNormal, koalaEatsLeaves]
         selectedAnimation = idleAnimations[Math.floor(Math.random() * idleAnimations.length)]
+        break
+      }
     }
-    
+
     console.log('KoalaPet: Selected animation:', selectedAnimation)
     return selectedAnimation
   }

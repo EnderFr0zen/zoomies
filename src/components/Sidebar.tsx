@@ -19,10 +19,6 @@ const Sidebar: React.FC = () => {
             <span className="nav-text">Courses</span>
           </div>
           <div className="nav-item">
-            <span className="nav-icon">📄</span>
-            <span className="nav-text">Study Materials</span>
-          </div>
-          <div className="nav-item">
             <span className="nav-icon">⚙️</span>
             <span className="nav-text">Settings</span>
           </div>

@@ -19,6 +19,7 @@ body {
   display: flex;
   flex: 1;
   min-height: calc(100vh - 60px);
+  margin-top: 60px; /* 為固定的標題欄留出空間 */
 }
 
 @media (max-width: 768px) {
