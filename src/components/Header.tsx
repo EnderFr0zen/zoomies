@@ -1,12 +1,17 @@
 import React from 'react'
 import './Header.css'
+import logoImage from '../assets/logo.png'
 
 const Header: React.FC = () => {
   return (
     <header className="header">
       <div className="header-left">
         <div className="logo">
-          <span className="logo-text">Zoomies</span>
+          <img 
+            src={logoImage} 
+            alt="Zoomies Logo" 
+            className="logo-image"
+          />
         </div>
       </div>
       
