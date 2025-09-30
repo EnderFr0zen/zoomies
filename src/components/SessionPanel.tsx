@@ -19,7 +19,7 @@ const SessionPanel: React.FC = () => {
     'Music'
   ]
 
-  // 更新會話統計
+  // Update session statistics
   // useEffect(() => {
   //   const updateStats = async () => {
   //     if (sessionState.isSessionActive) {
@@ -29,11 +29,11 @@ const SessionPanel: React.FC = () => {
   //   }
 
   //   updateStats()
-  //   const interval = setInterval(updateStats, 5000) // 每5秒更新一次
+  //   const interval = setInterval(updateStats, 5000) // Update every 5 seconds
   //   return () => clearInterval(interval)
   // }, [sessionState.isSessionActive, sessionActions])
 
-  // 處理會話開始/結束
+  // Handle session start/end
   // const handleSessionToggle = async () => {
   //   if (sessionState.isSessionActive) {
   //     await sessionActions.endSession()

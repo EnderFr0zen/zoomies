@@ -1,11 +1,11 @@
-// 多標籤頁管理器
+// Multi-tab Manager
 export class MultiTabManager {
   private readonly channel: BroadcastChannel
   private isLeader = false
   private readonly leaderId: string
   private heartbeatInterval: number | null = null
-  private readonly HEARTBEAT_INTERVAL = 5000 // 5秒心跳
-  private readonly LEADER_TIMEOUT = 10000 // 10秒超時
+  private readonly HEARTBEAT_INTERVAL = 5000 // 5 second heartbeat
+  private readonly LEADER_TIMEOUT = 10000 // 10 second timeout
 
   constructor() {
     this.leaderId = this.generateTabId()
@@ -14,18 +14,18 @@ export class MultiTabManager {
     this.startLeaderElection()
   }
 
-  // 生成標籤頁 ID
+  // Generate tab ID
   private generateTabId(): string {
     return `tab_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
   }
 
-  // 設置事件監聽器
+  // Set event listeners
   private setupEventListeners(): void {
     this.channel.addEventListener('message', (event) => {
       this.handleMessage(event.data)
     })
 
-    // 頁面卸載時通知其他標籤頁
+    // Notify other tabs when page unloads
     window.addEventListener('beforeunload', () => {
       this.broadcastMessage({
         type: 'tab_closing',
@@ -33,7 +33,7 @@ export class MultiTabManager {
       })
     })
 
-    // 頁面可見性變化
+    // Page visibility change
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.broadcastMessage({
@@ -49,7 +49,7 @@ export class MultiTabManager {
     })
   }
 
-  // 處理消息
+  // Handle messages
   private handleMessage(data: any): void {
     switch (data.type) {
       case 'leader_election':
@@ -73,7 +73,7 @@ export class MultiTabManager {
     }
   }
 
-  // 開始領導者選舉
+  // Start leader election
   private startLeaderElection(): void {
     this.broadcastMessage({
       type: 'leader_election',
@@ -81,16 +81,16 @@ export class MultiTabManager {
       timestamp: Date.now()
     })
 
-    // 等待一段時間後檢查是否成為領導者
+    // Wait for a while then check if became leader
     setTimeout(() => {
       this.checkLeadership()
     }, 1000)
   }
 
-  // 處理領導者選舉
+  // Handle leader election
   private handleLeaderElection(data: any): void {
     if (data.tabId !== this.leaderId && data.timestamp < Date.now() - 1000) {
-      // 其他標籤頁發起選舉，如果我們是較新的標籤頁，則回應
+      // Other tab initiated election, respond if we are newer tab
       this.broadcastMessage({
         type: 'leader_election',
         tabId: this.leaderId,
@@ -99,9 +99,9 @@ export class MultiTabManager {
     }
   }
 
-  // 檢查領導者狀態
+  // Check leader status
   private checkLeadership(): void {
-    // 簡單的領導者選舉：ID 最小的標籤頁成為領導者
+    // Simple leader election: tab with smallest ID becomes leader
     this.broadcastMessage({
       type: 'leader_check',
       tabId: this.leaderId
@@ -116,14 +116,14 @@ export class MultiTabManager {
     }, 500)
   }
 
-  // 成為領導者
+  // Become leader
   private becomeLeader(): void {
     this.isLeader = true
     this.startHeartbeat()
     console.log('Became leader tab for Zoomies')
   }
 
-  // 開始心跳
+  // Start heartbeat
   private startHeartbeat(): void {
     if (this.heartbeatInterval) return
 
@@ -136,7 +136,7 @@ export class MultiTabManager {
     }, this.HEARTBEAT_INTERVAL)
   }
 
-  // 停止心跳
+  // Stop heartbeat
   private stopHeartbeat(): void {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval)
@@ -144,10 +144,10 @@ export class MultiTabManager {
     }
   }
 
-  // 處理領導者心跳
+  // Handle leader heartbeat
   private handleLeaderHeartbeat(data: any): void {
     if (data.tabId !== this.leaderId && this.isLeader) {
-      // 有其他標籤頁聲稱是領導者，檢查時間戳
+      // Other tab claims to be leader, check timestamp
       if (data.timestamp > Date.now() - this.LEADER_TIMEOUT) {
         this.isLeader = false
         this.stopHeartbeat()
@@ -156,10 +156,10 @@ export class MultiTabManager {
     }
   }
 
-  // 處理標籤頁關閉
+  // Handle tab close
   private handleTabClosing(data: any): void {
     if (data.tabId === this.leaderId && this.isLeader) {
-      // 領導者標籤頁關閉，重新選舉
+      // Leader tab closed, re-elect
       this.isLeader = false
       this.stopHeartbeat()
       setTimeout(() => {
@@ -168,28 +168,28 @@ export class MultiTabManager {
     }
   }
 
-  // 處理會話開始
+  // Handle session start
   private handleSessionStart(data: any): void {
     if (!this.isLeader) {
       console.log('Session started in another tab:', data.sessionId)
     }
   }
 
-  // 處理會話結束
+  // Handle session end
   private handleSessionEnd(data: any): void {
     if (!this.isLeader) {
       console.log('Session ended in another tab:', data.sessionId)
     }
   }
 
-  // 處理事件記錄
+  // Handle event logging
   private handleEventLog(data: any): void {
     if (!this.isLeader) {
       console.log('Event logged in another tab:', data.eventType)
     }
   }
 
-  // 廣播消息
+  // Broadcast message
   private broadcastMessage(message: any): void {
     try {
       this.channel.postMessage(message)
@@ -198,17 +198,17 @@ export class MultiTabManager {
     }
   }
 
-  // 檢查是否為領導者
+  // Check if leader
   isLeaderTab(): boolean {
     return this.isLeader
   }
 
-  // 獲取標籤頁 ID
+  // Get tab ID
   getTabId(): string {
     return this.leaderId
   }
 
-  // 通知會話開始
+  // Notify session start
   notifySessionStart(sessionId: string, subject: string): void {
     if (this.isLeader) {
       this.broadcastMessage({
@@ -220,7 +220,7 @@ export class MultiTabManager {
     }
   }
 
-  // 通知會話結束
+  // Notify session end
   notifySessionEnd(sessionId: string, subject: string, duration: number): void {
     if (this.isLeader) {
       this.broadcastMessage({
@@ -233,7 +233,7 @@ export class MultiTabManager {
     }
   }
 
-  // 通知事件記錄
+  // Notify event logging
   notifyEventLog(eventType: string, sessionId: string): void {
     if (this.isLeader) {
       this.broadcastMessage({
@@ -245,13 +245,13 @@ export class MultiTabManager {
     }
   }
 
-  // 清理資源
+  // Clean resources
   destroy(): void {
     this.stopHeartbeat()
     this.channel.close()
   }
 }
 
-// 導出單例實例
+// Export singleton instance
 export const multiTabManager = new MultiTabManager()
 export default multiTabManager

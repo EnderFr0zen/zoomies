@@ -28,12 +28,12 @@ const GazeCamera: React.FC<GazeCameraProps> = ({ courseId }) => {
   return (
     <div className="gaze-camera-container">
       <div className="gaze-camera-header">
-        <h3>注意力監測</h3>
+        <h3>Attention Monitoring</h3>
         <button 
           className={`gaze-toggle-btn ${isActive ? 'active' : ''}`}
           onClick={toggleDetection}
         >
-          {isActive ? '停止監測' : '開始監測'}
+          {isActive ? 'Stop Monitoring' : 'Start Monitoring'}
         </button>
       </div>
 
@@ -57,31 +57,31 @@ const GazeCamera: React.FC<GazeCameraProps> = ({ courseId }) => {
             {!isPermissionGranted && (
               <div className="permission-overlay">
                 <div className="camera-icon">📹</div>
-                <p>正在請求攝像頭權限...</p>
+                <p>Requesting camera permission...</p>
               </div>
             )}
             
             {isPermissionGranted && isDetecting && (
               <div className="detection-indicator">
                 <div className="pulse-dot"></div>
-                <span>監測中...</span>
+                <span>Monitoring...</span>
               </div>
             )}
           </div>
         ) : (
           <div className="camera-placeholder">
             <div className="camera-icon">📹</div>
-            <p>點擊開始監測以啟用攝像頭</p>
+            <p>Click Start Monitoring to enable camera</p>
           </div>
         )}
 
         <div className="gaze-stats">
           <div className="stat-item">
-            <span className="stat-label">分心次數:</span>
+            <span className="stat-label">Distractions:</span>
             <span className="stat-value">{distractionCount}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">專注時間:</span>
+            <span className="stat-label">Focus Time:</span>
             <span className="stat-value">{formatTime(focusTime)}</span>
           </div>
         </div>

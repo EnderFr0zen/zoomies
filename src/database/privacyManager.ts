@@ -1,4 +1,4 @@
-// 隱私管理器
+// Privacy Manager
 export class PrivacyManager {
   private consentGiven = false
   private encryptionKey: CryptoKey | null = null
@@ -9,7 +9,7 @@ export class PrivacyManager {
     this.loadConsentStatus()
   }
 
-  // 加載同意狀態
+  // Load consent status
   private loadConsentStatus(): void {
     const stored = localStorage.getItem(this.CONSENT_KEY)
     if (stored) {
@@ -22,7 +22,7 @@ export class PrivacyManager {
     }
   }
 
-  // 請求用戶同意
+  // Request user consent
   async requestConsent(): Promise<boolean> {
     if (this.consentGiven) return true
 
@@ -34,7 +34,7 @@ export class PrivacyManager {
     // Original consent dialog code (commented out for development)
     /*
     return new Promise((resolve) => {
-      // 創建同意對話框
+      // Create consent dialog
       const consentDialog = this.createConsentDialog((accepted) => {
         if (accepted) {
           this.grantConsent()
@@ -47,7 +47,7 @@ export class PrivacyManager {
     */
   }
 
-  // 創建同意對話框 (commented out for development)
+  // Create consent dialog (commented out for development)
   /*
   private createConsentDialog(onResponse: (accepted: boolean) => void): HTMLElement {
     const dialog = document.createElement('div')
@@ -76,19 +76,19 @@ export class PrivacyManager {
     `
 
     content.innerHTML = `
-      <h2 style="margin-top: 0; color: #333;">隱私同意聲明</h2>
-      <p>Zoomies 需要收集以下數據來為您提供個性化的學習支持：</p>
+      <h2 style="margin-top: 0; color: #333;">Privacy Consent Statement</h2>
+      <p>Zoomies needs to collect the following data to provide you with personalized learning support:</p>
       <ul>
         <li><strong>注意力數據</strong>：檢測您的專注狀態（不包含圖像或視頻）</li>
         <li><strong>學習會話</strong>：記錄學習時間、科目和進度</li>
         <li><strong>互動數據</strong>：考拉寵物的提醒和您的回應</li>
       </ul>
-      <p><strong>隱私保護：</strong></p>
+      <p><strong>Privacy Protection:</strong></p>
       <ul>
-        <li>所有數據僅存儲在您的設備上</li>
-        <li>不會上傳到任何服務器</li>
-        <li>您可以隨時刪除所有數據</li>
-        <li>數據將在30天後自動清理</li>
+        <li>All data is stored only on your device</li>
+        <li>Not uploaded to any server</li>
+        <li>You can delete all data at any time</li>
+        <li>Data will be automatically cleaned after 30 days</li>
       </ul>
       <div style="display: flex; gap: 10px; margin-top: 20px;">
         <button id="accept-btn" style="
@@ -99,7 +99,7 @@ export class PrivacyManager {
           border-radius: 6px;
           cursor: pointer;
           font-size: 16px;
-        ">同意並開始</button>
+        ">Agree and Start</button>
         <button id="decline-btn" style="
           background: #f44336;
           color: white;
@@ -108,13 +108,13 @@ export class PrivacyManager {
           border-radius: 6px;
           cursor: pointer;
           font-size: 16px;
-        ">拒絕</button>
+        ">Reject</button>
       </div>
     `
 
     dialog.appendChild(content)
 
-    // 添加事件監聽器
+    // Add event listeners
     content.querySelector('#accept-btn')?.addEventListener('click', () => {
       document.body.removeChild(dialog)
       onResponse(true)
@@ -129,7 +129,7 @@ export class PrivacyManager {
   }
   */
 
-  // 授予同意
+  // Grant consent
   private grantConsent(): void {
     this.consentGiven = true
     const consentData = {
@@ -140,28 +140,28 @@ export class PrivacyManager {
     localStorage.setItem(this.CONSENT_KEY, JSON.stringify(consentData))
   }
 
-  // 撤銷同意
+  // Revoke consent
   revokeConsent(): void {
     this.consentGiven = false
     localStorage.removeItem(this.CONSENT_KEY)
     this.clearAllData()
   }
 
-  // 檢查是否已同意
+  // Check if already consented
   hasConsent(): boolean {
     return this.consentGiven
   }
 
-  // 初始化加密
+  // Initialize encryption
   async initializeEncryption(): Promise<void> {
     if (!this.consentGiven) return
 
     try {
-      // 嘗試從 IndexedDB 獲取現有密鑰
+      // Try to get existing key from IndexedDB
       this.encryptionKey = await this.getStoredEncryptionKey()
       
       if (!this.encryptionKey) {
-        // 生成新的加密密鑰
+        // Generate new encryption key
         this.encryptionKey = await crypto.subtle.generateKey(
           {
             name: 'AES-GCM',
@@ -171,7 +171,7 @@ export class PrivacyManager {
           ['encrypt', 'decrypt']
         )
         
-        // 存儲密鑰
+        // Store key
         await this.storeEncryptionKey()
       }
     } catch (error) {
@@ -179,7 +179,7 @@ export class PrivacyManager {
     }
   }
 
-  // 獲取存儲的加密密鑰
+  // Get stored encryption key
   private async getStoredEncryptionKey(): Promise<CryptoKey | null> {
     try {
       const keyData = localStorage.getItem(this.ENCRYPTION_KEY_NAME)
@@ -199,7 +199,7 @@ export class PrivacyManager {
     }
   }
 
-  // 存儲加密密鑰
+  // Store encryption key
   private async storeEncryptionKey(): Promise<void> {
     if (!this.encryptionKey) return
 
@@ -212,7 +212,7 @@ export class PrivacyManager {
     }
   }
 
-  // 加密敏感數據
+  // Encrypt sensitive data
   async encryptSensitiveData(data: string): Promise<string> {
     if (!this.encryptionKey || !this.consentGiven) return data
 
@@ -230,7 +230,7 @@ export class PrivacyManager {
         dataBuffer
       )
 
-      // 將 IV 和加密數據組合
+      // Combine IV and encrypted data
       const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength)
       combined.set(iv)
       combined.set(new Uint8Array(encryptedBuffer), iv.length)
@@ -242,7 +242,7 @@ export class PrivacyManager {
     }
   }
 
-  // 解密敏感數據
+  // Decrypt sensitive data
   async decryptSensitiveData(encryptedData: string): Promise<string> {
     if (!this.encryptionKey || !this.consentGiven) return encryptedData
 
@@ -271,10 +271,10 @@ export class PrivacyManager {
     }
   }
 
-  // 清理所有數據
+  // Clean all data
   async clearAllData(): Promise<void> {
     try {
-      // 清理 localStorage
+      // Clean localStorage
       const keysToRemove = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
@@ -284,7 +284,7 @@ export class PrivacyManager {
       }
       keysToRemove.forEach(key => localStorage.removeItem(key))
 
-      // 清理 IndexedDB
+      // Clean IndexedDB
       const databases = ['zoomies-sessions', 'zoomies-events', 'zoomies-metrics', 'zoomies-settings']
       for (const dbName of databases) {
         try {
@@ -298,7 +298,7 @@ export class PrivacyManager {
         }
       }
 
-      // 重置狀態
+      // Reset state
       this.consentGiven = false
       this.encryptionKey = null
 
@@ -308,7 +308,7 @@ export class PrivacyManager {
     }
   }
 
-  // 導出數據（用於備份）
+  // Export data (for backup)
   async exportUserData(): Promise<{
     consent: any
     settings: any
@@ -321,8 +321,8 @@ export class PrivacyManager {
     }
 
     try {
-      // 這裡需要從數據庫獲取數據
-      // 為了簡化，我們返回基本結構
+      // Need to get data from database here
+      // For simplicity, return basic structure
       return {
         consent: JSON.parse(localStorage.getItem(this.CONSENT_KEY) || '{}'),
         settings: {},
@@ -336,7 +336,7 @@ export class PrivacyManager {
     }
   }
 
-  // 獲取隱私設置
+  // Get privacy settings
   getPrivacySettings(): {
     consentGiven: boolean
     dataRetentionDays: number
@@ -350,6 +350,6 @@ export class PrivacyManager {
   }
 }
 
-// 導出單例實例
+// Export singleton instance
 export const privacyManager = new PrivacyManager()
 export default privacyManager

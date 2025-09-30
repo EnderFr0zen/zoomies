@@ -1,14 +1,14 @@
-// 存儲管理器
+// Storage Manager
 export class StorageManager {
   private readonly STORAGE_QUOTA_KEY = 'zoomies_storage_quota'
-  private readonly CLEANUP_INTERVAL = 24 * 60 * 60 * 1000 // 24小時
+  private readonly CLEANUP_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
   private cleanupTimer: number | null = null
 
   constructor() {
     this.startPeriodicCleanup()
   }
 
-  // 請求持久存儲
+  // Request persistent storage
   async requestPersistentStorage(): Promise<boolean> {
     try {
       if ('storage' in navigator && 'persist' in navigator.storage) {
@@ -23,7 +23,7 @@ export class StorageManager {
     }
   }
 
-  // 檢查存儲配額
+  // Check storage quota
   async checkStorageQuota(): Promise<{
     used: number
     available: number
@@ -61,7 +61,7 @@ export class StorageManager {
     }
   }
 
-  // 檢查存儲是否持久
+  // Check if storage is persistent
   async isStoragePersistent(): Promise<boolean> {
     try {
       if ('storage' in navigator && 'persisted' in navigator.storage) {
@@ -74,7 +74,7 @@ export class StorageManager {
     }
   }
 
-  // 設置存儲配額限制
+  // Set storage quota limit
   setStorageQuota(quota: {
     maxEvents: number
     maxSessions: number
@@ -87,7 +87,7 @@ export class StorageManager {
     }))
   }
 
-  // 獲取存儲配額設置
+  // Get storage quota settings
   getStorageQuota(): {
     maxEvents: number
     maxSessions: number
@@ -109,7 +109,7 @@ export class StorageManager {
       console.error('Failed to load storage quota:', error)
     }
 
-    // 默認配額
+    // Default quota
     return {
       maxEvents: 10000,
       maxSessions: 1000,
@@ -118,7 +118,7 @@ export class StorageManager {
     }
   }
 
-  // 開始定期清理
+  // Start periodic cleanup
   startPeriodicCleanup(): void {
     if (this.cleanupTimer) return
 
@@ -131,7 +131,7 @@ export class StorageManager {
     }, this.CLEANUP_INTERVAL)
   }
 
-  // 停止定期清理
+  // Stop periodic cleanup
   stopPeriodicCleanup(): void {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer)
@@ -139,7 +139,7 @@ export class StorageManager {
     }
   }
 
-  // 執行清理
+  // Execute cleanup
   async performCleanup(): Promise<void> {
     try {
       const quota = this.getStorageQuota()
@@ -148,16 +148,16 @@ export class StorageManager {
       console.log('Starting storage cleanup...')
       console.log('Storage usage:', quotaInfo.percentage.toFixed(2) + '%')
 
-      // 如果使用率超過 80%，執行清理
+      // If usage exceeds 80%, execute cleanup
       if (quotaInfo.percentage > 80) {
         await this.cleanupOldData(quota.retentionDays)
         await this.compressData()
       }
 
-      // 檢查事件數量限制
+      // Check event count limit
       await this.enforceEventLimit(quota.maxEvents)
       
-      // 檢查會話數量限制
+      // Check session count limit
       await this.enforceSessionLimit(quota.maxSessions)
 
       console.log('Storage cleanup completed')
@@ -166,48 +166,48 @@ export class StorageManager {
     }
   }
 
-  // 清理舊數據
+  // Clean old data
   private async cleanupOldData(retentionDays: number): Promise<void> {
     try {
-      // 這裡可以實現清理邏輯
+      // Implement cleanup logic here
       console.log(`Cleaned up data older than ${retentionDays} days`)
     } catch (error) {
       console.error('Failed to cleanup old data:', error)
     }
   }
 
-  // 壓縮數據
+  // Compress data
   private async compressData(): Promise<void> {
     try {
-      // 這裡可以實現數據壓縮邏輯
-      // 例如：合併相似事件、減少精度等
+      // Implement data compression logic here
+      // For example: merge similar events, reduce precision, etc.
       console.log('Data compression completed')
     } catch (error) {
       console.error('Data compression failed:', error)
     }
   }
 
-  // 強制事件數量限制
+  // Force event count limit
   private async enforceEventLimit(maxEvents: number): Promise<void> {
     try {
-      // 這裡可以實現事件數量限制邏輯
+      // Implement event count limit logic here
       console.log(`Enforcing event limit: ${maxEvents}`)
     } catch (error) {
       console.error('Failed to enforce event limit:', error)
     }
   }
 
-  // 強制會話數量限制
+  // Force session count limit
   private async enforceSessionLimit(maxSessions: number): Promise<void> {
     try {
-      // 這裡可以實現會話數量限制邏輯
+      // Implement session count limit logic here
       console.log(`Enforcing session limit: ${maxSessions}`)
     } catch (error) {
       console.error('Failed to enforce session limit:', error)
     }
   }
 
-  // 獲取存儲統計
+  // Get storage statistics
   async getStorageStats(): Promise<{
     quota: any
     usage: any
@@ -236,7 +236,7 @@ export class StorageManager {
     }
   }
 
-  // 導出存儲報告
+  // Export storage report
   async exportStorageReport(): Promise<{
     timestamp: string
     quota: any
@@ -265,16 +265,16 @@ export class StorageManager {
     }
   }
 
-  // 清理所有存儲
+  // Clean all storage
   async clearAllStorage(): Promise<void> {
     try {
-      // 停止定期清理
+      // Stop periodic cleanup
       this.stopPeriodicCleanup()
 
-      // 清理所有數據庫
-      // 這裡可以實現清理所有數據的邏輯
+      // Clean all data庫
+      // Implement logic to clean all data here
 
-      // 清理 localStorage 中的 Zoomies 相關項目
+      // Clean localStorage 中的 Zoomies 相關項目
       const keysToRemove = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
@@ -291,23 +291,23 @@ export class StorageManager {
     }
   }
 
-  // 優化存儲
+  // Optimize storage
   async optimizeStorage(): Promise<void> {
     try {
       console.log('Starting storage optimization...')
 
-      // 1. 清理舊數據
+      // 1. Clean old data
       const quota = this.getStorageQuota()
       await this.cleanupOldData(quota.retentionDays)
 
-      // 2. 壓縮數據
+      // 2. Compress data
       await this.compressData()
 
-      // 3. 強制限制
+      // 3. Force limits
       await this.enforceEventLimit(quota.maxEvents)
       await this.enforceSessionLimit(quota.maxSessions)
 
-      // 4. 壓縮數據庫
+      // 4. Compress database
       await this.compactDatabases()
 
       console.log('Storage optimization completed')
@@ -317,10 +317,10 @@ export class StorageManager {
     }
   }
 
-  // 壓縮數據庫
+  // Compress data庫
   private async compactDatabases(): Promise<void> {
     try {
-      // PouchDB 自動處理壓縮，這裡可以添加額外的壓縮邏輯
+      // PouchDB handles compression automatically, add additional compression logic here
       console.log('Database compaction completed')
     } catch (error) {
       console.error('Database compaction failed:', error)
@@ -328,6 +328,6 @@ export class StorageManager {
   }
 }
 
-// 導出單例實例
+// Export singleton instance
 export const storageManager = new StorageManager()
 export default storageManager
