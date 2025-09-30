@@ -1,0 +1,72 @@
+.key-metrics {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.metrics-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.metric-bullet {
+  font-size: 20px;
+  color: #333;
+  font-weight: bold;
+}
+
+.metric-text {
+  font-size: 16px;
+  color: #333;
+  font-weight: 500;
+}
+
+.progress-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+}
+
+.progress-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(#333 0deg 270deg, #e0e0e0 270deg 360deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.progress-circle::before {
+  content: '';
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  background-color: white;
+  border-radius: 50%;
+}
+
+.progress-text {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  z-index: 1;
+}

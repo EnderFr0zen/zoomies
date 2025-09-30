@@ -1,0 +1,125 @@
+.classes {
+  height: 100%;
+}
+
+.classes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.classes-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.view-all-btn {
+  background: none;
+  border: none;
+  color: #4CAF50;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.view-all-btn:hover {
+  color: #388E3C;
+}
+
+.classes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+@media (max-width: 768px) {
+  .classes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.class-card {
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+}
+
+.class-card.grammar {
+  background-color: #C8E6C9;
+}
+
+.class-card.vowel {
+  background-color: #FFE0B2;
+}
+
+.class-card.vocabulary {
+  background-color: #F8BBD9;
+}
+
+.class-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.class-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.class-profiles {
+  display: flex;
+  gap: 8px;
+}
+
+.profile-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.class-progress {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.progress-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: conic-gradient(#4CAF50 0deg 252deg, #e0e0e0 252deg 360deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.progress-circle::before {
+  content: '';
+  position: absolute;
+  width: 35px;
+  height: 35px;
+  background-color: white;
+  border-radius: 50%;
+}
+
+.progress-text {
+  font-size: 12px;
+  font-weight: bold;
+  color: #333;
+  z-index: 1;
+}

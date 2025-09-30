@@ -1,0 +1,96 @@
+.upcoming-events {
+  height: 100%;
+}
+
+.events-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #FFE082;
+  border-radius: 8px;
+}
+
+.nav-arrow {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #333;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.nav-arrow:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.month-year {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.event-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.event-item:hover {
+  transform: translateX(5px);
+}
+
+.event-item.green {
+  background-color: #C8E6C9;
+}
+
+.event-item.pink {
+  background-color: #F8BBD9;
+}
+
+.event-item.orange {
+  background-color: #FFE0B2;
+}
+
+.event-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 60px;
+}
+
+.date-icon {
+  font-size: 16px;
+}
+
+.date-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.event-text {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
