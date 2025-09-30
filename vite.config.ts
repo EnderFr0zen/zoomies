@@ -1,28 +1,31 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import basicSsl from '@vitejs/plugin-basic-ssl'
+import { fileURLToPath, URL } from 'node:url'
+
+const mediapipeBundle = fileURLToPath(
+  new URL('./node_modules/@mediapipe/tasks-vision/vision_bundle.mjs', import.meta.url)
+)
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), basicSsl()],
   optimizeDeps: {
-    include: ['pouchdb', 'pouchdb-find']
+    include: ['pouchdb', 'pouchdb-find', '@mediapipe/tasks-vision']
   },
   define: {
     global: 'globalThis',
   },
   resolve: {
     alias: {
-      events: 'events'
+      events: 'events',
+      '@mediapipe/tasks-vision': mediapipeBundle
     }
   },
   build: {
     commonjsOptions: {
-      include: [/node_modules/]
+      include: [/node_modules/],
     },
-    rollupOptions: {
-      external: ['@mediapipe/tasks-vision']
-    }
   },
   server: {
     host: '0.0.0.0', // Allow external connections
