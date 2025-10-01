@@ -146,6 +146,72 @@
   background: white;
 }
 
+/* PDF viewer sidebar customization - more specific selectors */
+.file-iframe #thumbnails,
+.file-iframe #thumbnails[role="tablist"] {
+  width: 84px !important;
+  max-width: 84px !important;
+}
+
+.file-iframe viewer-thumbnail,
+.file-iframe viewer-thumbnail[role="tab"] {
+  width: 84px !important;
+  max-width: 84px !important;
+  min-width: 84px !important;
+}
+
+.file-iframe #thumbnail,
+.file-iframe #thumbnail[role="button"] {
+  width: 84px !important;
+  height: 47px !important;
+  max-width: 84px !important;
+  min-width: 84px !important;
+}
+
+.file-iframe #pdf-canvas {
+  width: 84px !important;
+  height: 47px !important;
+  max-width: 84px !important;
+  min-width: 84px !important;
+}
+
+/* Additional selectors for shadow DOM elements */
+.file-iframe viewer-thumbnail::part(thumbnail),
+.file-iframe viewer-thumbnail::part(canvas-container) {
+  width: 84px !important;
+  height: 47px !important;
+  max-width: 84px !important;
+}
+
+/* Global PDF viewer overrides */
+#thumbnails,
+#thumbnails[role="tablist"] {
+  width: 84px !important;
+  max-width: 84px !important;
+}
+
+viewer-thumbnail,
+viewer-thumbnail[role="tab"] {
+  width: 84px !important;
+  max-width: 84px !important;
+  min-width: 84px !important;
+}
+
+#thumbnail,
+#thumbnail[role="button"] {
+  width: 84px !important;
+  height: 47px !important;
+  max-width: 84px !important;
+  min-width: 84px !important;
+}
+
+#pdf-canvas {
+  width: 84px !important;
+  height: 47px !important;
+  max-width: 84px !important;
+  min-width: 84px !important;
+}
+
 .text-iframe {
   font-family: 'Courier New', monospace;
 }
